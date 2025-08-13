@@ -19,13 +19,20 @@ class NetworkService {
   ConnectionState _connectionState = ConnectionState.disconnected;
   ConnectionState get connectionState => _connectionState;
 
-  Stream<MouseEvent> get eventStream => _eventController!.stream;
-  Stream<ConnectionState> get connectionStream => _connectionController!.stream;
+  Stream<MouseEvent> get eventStream {
+    _eventController ??= StreamController<MouseEvent>.broadcast();
+    return _eventController!.stream;
+  }
+  
+  Stream<ConnectionState> get connectionStream {
+    _connectionController ??= StreamController<ConnectionState>.broadcast();
+    return _connectionController!.stream;
+  }
 
   Future<void> startServer({required int port}) async {
     try {
-      _eventController = StreamController<MouseEvent>.broadcast();
-      _connectionController = StreamController<ConnectionState>.broadcast();
+      _eventController ??= StreamController<MouseEvent>.broadcast();
+      _connectionController ??= StreamController<ConnectionState>.broadcast();
 
       _serverSocket = await ServerSocket.bind(InternetAddress.anyIPv4, port);
       _updateConnectionState(ConnectionState.disconnected);
@@ -102,10 +109,13 @@ class NetworkService {
   void _handleClientData(List<int> data) {
     try {
       final jsonString = utf8.decode(data);
+      print('Received raw data: $jsonString');
       final jsonData = json.decode(jsonString);
-      print(jsonData);
       final mouseEvent = MouseEvent.fromJson(jsonData);
+      print('Parsed mouse event: $mouseEvent');
+      print('Adding event to stream controller...');
       _eventController!.add(mouseEvent);
+      print('Event added to stream');
     } catch (e) {
       print('Data parsing error: $e');
     }

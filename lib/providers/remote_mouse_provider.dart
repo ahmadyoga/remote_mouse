@@ -54,6 +54,7 @@ class RemoteMouseProvider with ChangeNotifier {
     // Initialize mouse controller for desktop
     try {
       _mouseController = MouseControllerFactory.create();
+      print('Mouse controller initialized: ${_mouseController.runtimeType}');
 
       // Listen to network events for mouse control
       _networkService.eventStream.listen((MouseEvent event) {
@@ -63,11 +64,32 @@ class RemoteMouseProvider with ChangeNotifier {
 
       // Listen to connection state changes
       _networkService.connectionStream.listen((ConnectionState state) {
+        print('Connection state changed: $state');
         _connectionState = state;
         notifyListeners();
       });
+      
+      // Start the TCP server
+      _startDesktopServer();
+      
+      print('Desktop initialization completed');
     } catch (e) {
+      print('Failed to initialize desktop mode: $e');
       _errorMessage = 'Failed to initialize desktop mode: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> _startDesktopServer() async {
+    try {
+      await _networkService.startServer(port: _serverPort);
+      _isServerRunning = true;
+      print('Desktop TCP server started on port $_serverPort');
+      notifyListeners();
+    } catch (e) {
+      print('Failed to start desktop server: $e');
+      _errorMessage = 'Failed to start server: $e';
+      _isServerRunning = false;
       notifyListeners();
     }
   }
@@ -89,20 +111,29 @@ class RemoteMouseProvider with ChangeNotifier {
   }
 
   void _handleMouseEvent(MouseEvent event) {
-    if (_mouseController == null) return;
+    print('Handling mouse event: $event');
+    
+    if (_mouseController == null) {
+      print('Mouse controller is null!');
+      return;
+    }
 
     try {
       if (event.dx != null && event.dy != null) {
         // Mouse movement
+        print('Moving mouse: dx=${event.dx}, dy=${event.dy}');
         _mouseController!.moveMouse(event.dx!, event.dy!);
       } else if (event.click != null) {
         // Mouse click
+        print('Clicking mouse: ${event.click}');
         _mouseController!.click(event.click!);
       } else if (event.scroll != null) {
         // Scroll
+        print('Scrolling: ${event.scroll}');
         _mouseController!.scroll(event.scroll!);
       } else if (event.gesture != null) {
         // Handle gestures
+        print('Handling gesture: ${event.gesture}');
         _handleGestureEvent(event);
       }
     } catch (e) {
