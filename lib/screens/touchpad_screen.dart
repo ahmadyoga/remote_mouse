@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/remote_mouse_provider.dart';
 import '../models/app_state.dart' as app_state;
 import 'settings_screen.dart';
+import 'qr_scanner_screen.dart';
 
 class TouchpadScreen extends StatelessWidget {
   const TouchpadScreen({super.key});
@@ -18,9 +19,6 @@ class TouchpadScreen extends StatelessWidget {
               // Main touchpad area
               Positioned.fill(
                 child: GestureDetector(
-                  onPanStart: provider.onPanStart,
-                  onPanUpdate: provider.onPanUpdate,
-                  onPanEnd: provider.onPanEnd,
                   onTap: provider.onTap,
                   onLongPress: provider.onLongPress,
                   onScaleStart: provider.onScaleStart,
@@ -56,6 +54,16 @@ class TouchpadScreen extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // QR Scanner button (only show when disconnected)
+                    if (provider.connectionState ==
+                        app_state.ConnectionState.disconnected)
+                      IconButton(
+                        onPressed: () => _navigateToQRScanner(context),
+                        icon: const Icon(
+                          Icons.qr_code_scanner,
+                          color: Colors.white54,
+                        ),
+                      ),
                     IconButton(
                       onPressed: () => _showConnectionDialog(context, provider),
                       icon: const Icon(
@@ -273,6 +281,14 @@ class TouchpadScreen extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const SettingsScreen(),
+      ),
+    );
+  }
+
+  void _navigateToQRScanner(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const QRScannerScreen(),
       ),
     );
   }

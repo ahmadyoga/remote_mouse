@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:network_info_plus/network_info_plus.dart';
 import '../providers/remote_mouse_provider.dart';
 import '../models/app_state.dart' as app_state;
 
@@ -12,11 +14,13 @@ class DesktopScreen extends StatefulWidget {
 
 class _DesktopScreenState extends State<DesktopScreen> {
   bool _isInitialized = false;
+  String? _localIpAddress;
 
   @override
   void initState() {
     super.initState();
     _initializeDesktop();
+    _getLocalIpAddress();
   }
 
   Future<void> _initializeDesktop() async {
@@ -31,6 +35,21 @@ class _DesktopScreenState extends State<DesktopScreen> {
       });
     } catch (e) {
       print('Desktop initialization error: $e');
+    }
+  }
+
+  Future<void> _getLocalIpAddress() async {
+    try {
+      final info = NetworkInfo();
+      final wifiIP = await info.getWifiIP();
+      setState(() {
+        _localIpAddress = wifiIP;
+      });
+    } catch (e) {
+      print('Error getting IP address: $e');
+      setState(() {
+        _localIpAddress = 'Unknown';
+      });
     }
   }
 
@@ -52,169 +71,230 @@ class _DesktopScreenState extends State<DesktopScreen> {
       ),
       body: Consumer<RemoteMouseProvider>(
         builder: (context, provider, child) {
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Server Status Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              provider.isServerRunning
-                                  ? Icons.play_circle_fill
-                                  : Icons.stop_circle,
-                              color: provider.isServerRunning
-                                  ? Colors.green
-                                  : Colors.red,
-                              size: 32,
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Server Status',
-                                  style: Theme.of(context).textTheme.titleLarge,
-                                ),
-                                Text(
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Server Status Card
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                provider.isServerRunning
+                                    ? Icons.play_circle_fill
+                                    : Icons.stop_circle,
+                                color: provider.isServerRunning
+                                    ? Colors.green
+                                    : Colors.red,
+                                size: 32,
+                              ),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Server Status',
+                                    style:
+                                        Theme.of(context).textTheme.titleLarge,
+                                  ),
+                                  // Text(
+                                  //   provider.isServerRunning
+                                  //       ? 'Running on port ${provider.serverPort}'
+                                  //       : 'Stopped',
+                                  //   style: Theme.of(context).textTheme.bodyMedium,
+                                  // ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: provider.isServerRunning
+                                    ? () => provider.stopServer()
+                                    : () => provider.startServer(),
+                                icon: Icon(
                                   provider.isServerRunning
-                                      ? 'Running on port ${provider.serverPort}'
-                                      : 'Stopped',
-                                  style: Theme.of(context).textTheme.bodyMedium,
+                                      ? Icons.stop
+                                      : Icons.play_arrow,
                                 ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: provider.isServerRunning
-                                  ? () => provider.stopServer()
-                                  : () => provider.startServer(),
-                              icon: Icon(
-                                provider.isServerRunning
-                                    ? Icons.stop
-                                    : Icons.play_arrow,
+                                label: Text(
+                                  provider.isServerRunning
+                                      ? 'Stop Server'
+                                      : 'Start Server',
+                                ),
                               ),
-                              label: Text(
-                                provider.isServerRunning
-                                    ? 'Stop Server'
-                                    : 'Start Server',
+                              const SizedBox(width: 8),
+                              OutlinedButton.icon(
+                                onPressed: () =>
+                                    _showPortDialog(context, provider),
+                                icon: const Icon(Icons.settings),
+                                label: const Text('Port Settings'),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              onPressed: () =>
-                                  _showPortDialog(context, provider),
-                              icon: const Icon(Icons.settings),
-                              label: const Text('Port Settings'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Connection Status Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Connection Status',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(
-                              _getConnectionIcon(provider.connectionState),
-                              color:
-                                  _getConnectionColor(provider.connectionState),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(_getConnectionText(provider.connectionState)),
-                          ],
-                        ),
-                        if (provider.connectedDevice != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Connected to: ${provider.connectedDevice!.name}',
-                            style: Theme.of(context).textTheme.bodySmall,
+                            ],
                           ),
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Instructions Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Instructions',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          '1. Make sure the server is running\n'
-                          '2. Install the Remote Mouse app on your mobile device\n'
-                          '3. Connect to this computer using device discovery or manual IP entry\n'
-                          '4. Use your mobile device as a touchpad!\n\n'
-                          'Make sure both devices are on the same network.',
-                        ),
-                      ],
+                  // Connection Status Card
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Connection Status',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(
+                                _getConnectionIcon(provider.connectionState),
+                                color: _getConnectionColor(
+                                    provider.connectionState),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                  _getConnectionText(provider.connectionState)),
+                            ],
+                          ),
+                          if (provider.connectedDevice != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Connected to: ${provider.connectedDevice!.name}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                if (provider.errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16),
-                    child: Card(
-                      color: Colors.red.shade50,
+                  const SizedBox(height: 16),
+
+                  // QR Code Card
+                  if (provider.isServerRunning && _localIpAddress != null)
+                    Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.error, color: Colors.red),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                provider.errorMessage!,
-                                style: const TextStyle(color: Colors.red),
+                            Text(
+                              'Quick Connect',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Scan this QR code with the mobile app to connect instantly',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 16),
+                            Center(
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: QrImageView(
+                                  data:
+                                      '$_localIpAddress:${provider.serverPort}',
+                                  version: QrVersions.auto,
+                                  size: 150.0,
+                                  backgroundColor: Colors.white,
+                                ),
                               ),
                             ),
-                            IconButton(
-                              onPressed: provider.clearError,
-                              icon: const Icon(Icons.close, color: Colors.red),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: Text(
+                                '$_localIpAddress:${provider.serverPort}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      fontFamily: 'monospace',
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
+
+                  const SizedBox(height: 16),
+
+                  // Instructions Card
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Instructions',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            '1. Make sure the server is running\n'
+                            '2. Install the Remote Mouse app on your mobile device\n'
+                            '3. Connect to this computer using device discovery or manual IP entry\n'
+                            '4. Use your mobile device as a touchpad!\n\n'
+                            'Make sure both devices are on the same network.',
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-              ],
+
+                  if (provider.errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Card(
+                        color: Colors.red.shade50,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error, color: Colors.red),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  provider.errorMessage!,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: provider.clearError,
+                                icon:
+                                    const Icon(Icons.close, color: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           );
         },

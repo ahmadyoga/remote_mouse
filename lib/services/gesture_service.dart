@@ -14,8 +14,9 @@ class GestureService {
   Timer? _tapTimer;
   DateTime? _lastTapTime;
   int _tapCount = 0;
-  Offset? _lastPanPosition;
-  bool _isPanning = false;
+  Offset? _lastScalePosition;
+  bool _isScaling = false;
+  double? _lastScale;
 
   // Settings
   AppSettings _settings = AppSettings();
@@ -29,30 +30,20 @@ class GestureService {
     _settings = settings;
   }
 
-  // Handle single finger pan (mouse movement)
+  // Handle single finger pan (mouse movement) - Now handled in scale gestures
   void onPanStart(DragStartDetails details) {
-    print('Pan started at: ${details.globalPosition}');
-    _lastPanPosition = details.globalPosition;
-    _isPanning = true;
+    // This method is kept for compatibility but not used
+    // Mouse movement is now handled in onScaleUpdate
   }
 
   void onPanUpdate(DragUpdateDetails details) {
-    if (_isPanning && _lastPanPosition != null) {
-      final dx = (details.globalPosition.dx - _lastPanPosition!.dx) *
-          _settings.mouseSensitivity;
-      final dy = (details.globalPosition.dy - _lastPanPosition!.dy) *
-          _settings.mouseSensitivity;
-
-      _gestureController!.add(MouseEvent.move(dx, dy));
-      print('Pan updated at: ${details.globalPosition}');
-      _lastPanPosition = details.globalPosition;
-    }
+    // This method is kept for compatibility but not used
+    // Mouse movement is now handled in onScaleUpdate
   }
 
   void onPanEnd(DragEndDetails details) {
-    print('Pan ended at: ${details.velocity.pixelsPerSecond}');
-    _isPanning = false;
-    _lastPanPosition = null;
+    // This method is kept for compatibility but not used
+    // Mouse movement is now handled in onScaleEnd
   }
 
   // Handle tap gestures
@@ -82,26 +73,74 @@ class GestureService {
     });
   }
 
-  // Handle scale gestures (two finger operations)
+  // Handle scale gestures (both single finger movement and multi-finger gestures)
   void onScaleStart(ScaleStartDetails details) {
-    // Prepare for two-finger gestures
+    _lastScalePosition = details.focalPoint;
+    _lastScale = 1.0; // Scale starts at 1.0
+    _isScaling = true;
   }
 
   void onScaleUpdate(ScaleUpdateDetails details) {
-    if (details.pointerCount == 2) {
-      // Two-finger scroll
-      final dy = -details.focalPointDelta.dy * _settings.scrollSensitivity;
+    if (_isScaling && _lastScalePosition != null) {
+      // Handle single finger movement (mouse cursor movement)
+      if (details.pointerCount == 1) {
+        final dx = (details.focalPoint.dx - _lastScalePosition!.dx) *
+            _settings.mouseSensitivity;
+        final dy = (details.focalPoint.dy - _lastScalePosition!.dy) *
+            _settings.mouseSensitivity;
 
-      if (dy.abs() > 1.0) {
-        final direction = dy > 0 ? 'up' : 'down';
-        _gestureController!.add(MouseEvent.gesture('two_finger_scroll',
-            data: {'direction': direction, 'amount': dy.abs()}));
+        _gestureController!.add(MouseEvent.move(dx, dy));
       }
+
+      // Handle two-finger gestures
+      if (details.pointerCount == 2) {
+        // Two-finger scroll (vertical movement)
+        // Apply both scroll sensitivity and mouse sensitivity for more responsive scrolling
+        var dy = -(details.focalPoint.dy - _lastScalePosition!.dy) *
+            _settings.scrollSensitivity *
+            _settings.mouseSensitivity;
+
+        // Apply reverse scroll if enabled
+        if (_settings.reverseScroll) {
+          dy = -dy;
+        }
+
+        // Optimize scroll threshold and amount for better responsiveness
+        if (dy.abs() > 2.0) {
+          // Increased threshold to reduce event frequency
+          final direction = dy > 0 ? 'up' : 'down';
+          // Normalize amount to a reasonable range (1-10) for consistent feel across platforms
+          final normalizedAmount = (dy.abs() / 10).clamp(1.0, 10.0);
+          _gestureController!.add(MouseEvent.gesture('two_finger_scroll',
+              data: {'direction': direction, 'amount': normalizedAmount}));
+        }
+
+        // Pinch zoom detection
+        if (_lastScale != null) {
+          final scaleDiff = details.scale - _lastScale!;
+          if (scaleDiff.abs() > 0.05) {
+            // Reduced sensitivity for better control
+            _gestureController!.add(MouseEvent.gesture('pinch_zoom',
+                data: {'scale': details.scale, 'scaleDiff': scaleDiff}));
+          }
+        }
+        _lastScale = details.scale;
+
+        // Rotation detection
+        if (details.rotation.abs() > 0.1) {
+          _gestureController!.add(MouseEvent.gesture('rotate',
+              data: {'rotation': details.rotation}));
+        }
+      }
+
+      _lastScalePosition = details.focalPoint;
     }
   }
 
   void onScaleEnd(ScaleEndDetails details) {
-    // Clean up scale gesture
+    _isScaling = false;
+    _lastScalePosition = null;
+    _lastScale = null;
   }
 
   // Handle long press (right click)
@@ -119,9 +158,32 @@ class GestureService {
     _gestureController!.add(MouseEvent.click('right'));
   }
 
+  // Three-finger gestures
+  void onThreeFingerSwipe(String direction) {
+    _gestureController!.add(MouseEvent.gesture('three_finger_swipe',
+        data: {'direction': direction}));
+  }
+
+  void onThreeFingerTap() {
+    _gestureController!.add(MouseEvent.click('middle'));
+  }
+
+  // Four-finger gestures
+  void onFourFingerSwipe(String direction) {
+    _gestureController!.add(MouseEvent.gesture('four_finger_swipe',
+        data: {'direction': direction}));
+  }
+
   // Scroll wheel simulation
   void simulateScroll(String direction, {double amount = 1.0}) {
-    _gestureController!.add(MouseEvent.scroll(direction));
+    String finalDirection = direction;
+
+    // Apply reverse scroll if enabled
+    if (_settings.reverseScroll) {
+      finalDirection = direction == 'up' ? 'down' : 'up';
+    }
+
+    _gestureController!.add(MouseEvent.scroll(finalDirection));
   }
 
   // Direct button clicks

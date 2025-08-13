@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
+import 'dart:developer' as developer;
 import '../models/mouse_event.dart';
 import '../models/device_info.dart';
 import '../models/app_state.dart';
@@ -106,154 +107,18 @@ class NetworkService {
     );
   }
 
-  // Buffer to accumulate partial data
-  String _dataBuffer = '';
-
   void _handleClientData(List<int> data) {
     try {
       final jsonString = utf8.decode(data);
-      print('Received raw data: $jsonString');
-
-      // Add to buffer
-      _dataBuffer += jsonString;
-
-      // Process all complete JSON objects in the buffer
-      _processBufferedData();
+      final jsonData = json.decode(jsonString);
+      final mouseEvent = MouseEvent.fromJson(jsonData);
+      print('Parsed mouse event: $mouseEvent');
+      print('Adding event to stream controller...');
+      _eventController!.add(mouseEvent);
+      print('Event added to stream');
     } catch (e) {
       print('Data parsing error: $e');
     }
-  }
-
-  void _processBufferedData() {
-    // First try to process newline-delimited messages
-    final lines = _dataBuffer.split('\n');
-
-    // Process all complete lines (last line might be incomplete)
-    for (int i = 0; i < lines.length - 1; i++) {
-      final line = lines[i].trim();
-      if (line.isNotEmpty) {
-        try {
-          final jsonData = json.decode(line);
-          final event = MouseEvent.fromJson(jsonData);
-          print('Parsed mouse event: $event');
-          _eventController!.add(event);
-        } catch (e) {
-          print('Error parsing line: $e');
-          print('Problematic line: $line');
-        }
-      }
-    }
-
-    // Keep the last incomplete line in buffer
-    _dataBuffer = lines.last;
-
-    // If no newlines found, try to parse concatenated JSON objects
-    if (lines.length == 1 && _dataBuffer.length > 1000) {
-      // Buffer is getting too large, try to parse concatenated JSON
-      final events = _parseMultipleJsonObjects(_dataBuffer);
-
-      for (final event in events) {
-        print('Parsed mouse event: $event');
-        _eventController!.add(event);
-      }
-
-      if (events.isNotEmpty) {
-        _dataBuffer = _removeProcessedJson(_dataBuffer, events.length);
-      }
-    }
-  }
-
-  List<MouseEvent> _parseMultipleJsonObjects(String jsonString) {
-    final events = <MouseEvent>[];
-    int startIndex = 0;
-    int braceCount = 0;
-    bool inString = false;
-    bool escaped = false;
-
-    for (int i = 0; i < jsonString.length; i++) {
-      final char = jsonString[i];
-
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-
-      if (char == '\\' && inString) {
-        escaped = true;
-        continue;
-      }
-
-      if (char == '"') {
-        inString = !inString;
-        continue;
-      }
-
-      if (!inString) {
-        if (char == '{') {
-          braceCount++;
-        } else if (char == '}') {
-          braceCount--;
-
-          if (braceCount == 0) {
-            // Found complete JSON object
-            final jsonObj = jsonString.substring(startIndex, i + 1);
-            try {
-              final jsonData = json.decode(jsonObj);
-              events.add(MouseEvent.fromJson(jsonData));
-              startIndex = i + 1;
-            } catch (e) {
-              print('Error parsing JSON object: $e');
-              print('Problematic JSON: $jsonObj');
-            }
-          }
-        }
-      }
-    }
-
-    return events;
-  }
-
-  String _removeProcessedJson(String buffer, int processedCount) {
-    int removedCount = 0;
-    int braceCount = 0;
-    bool inString = false;
-    bool escaped = false;
-
-    for (int i = 0; i < buffer.length && removedCount < processedCount; i++) {
-      final char = buffer[i];
-
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-
-      if (char == '\\' && inString) {
-        escaped = true;
-        continue;
-      }
-
-      if (char == '"') {
-        inString = !inString;
-        continue;
-      }
-
-      if (!inString) {
-        if (char == '{') {
-          braceCount++;
-        } else if (char == '}') {
-          braceCount--;
-
-          if (braceCount == 0) {
-            removedCount++;
-            if (removedCount == processedCount) {
-              return buffer.substring(i + 1);
-            }
-          }
-        }
-      }
-    }
-
-    return buffer;
   }
 
   void _handleServerData(List<int> data) {
@@ -275,11 +140,9 @@ class NetworkService {
         _connectionState == ConnectionState.connected) {
       try {
         final jsonString = json.encode(event.toJson());
-        // Add newline delimiter to make parsing easier
-        _clientSocket!.write('$jsonString\n');
-        await _clientSocket!.flush();
+        _clientSocket!.add(utf8.encode(jsonString));
       } catch (e) {
-        print('Send error: $e');
+        developer.log('Send error: $e');
         _updateConnectionState(ConnectionState.error);
       }
     }

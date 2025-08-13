@@ -17,6 +17,7 @@ class AppSettings {
   int tapTimeout;
   double tapThreshold;
   double doubleClickThreshold;
+  bool reverseScroll;
 
   AppSettings({
     this.mouseSensitivity = 2.0,
@@ -24,6 +25,7 @@ class AppSettings {
     this.tapTimeout = 200,
     this.tapThreshold = 10.0,
     this.doubleClickThreshold = 300,
+    this.reverseScroll = false,
   });
 
   AppSettings copyWith({
@@ -32,6 +34,7 @@ class AppSettings {
     int? tapTimeout,
     double? tapThreshold,
     double? doubleClickThreshold,
+    bool? reverseScroll,
   }) {
     return AppSettings(
       mouseSensitivity: mouseSensitivity ?? this.mouseSensitivity,
@@ -39,6 +42,7 @@ class AppSettings {
       tapTimeout: tapTimeout ?? this.tapTimeout,
       tapThreshold: tapThreshold ?? this.tapThreshold,
       doubleClickThreshold: doubleClickThreshold ?? this.doubleClickThreshold,
+      reverseScroll: reverseScroll ?? this.reverseScroll,
     );
   }
 }

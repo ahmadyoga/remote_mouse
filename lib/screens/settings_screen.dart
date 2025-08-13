@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/remote_mouse_provider.dart';
 import '../models/app_state.dart';
+import 'qr_scanner_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -20,6 +21,31 @@ class SettingsScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // QR Code Scanner (only show if not connected)
+              if (provider.connectedDevice == null)
+                _buildSettingCard(
+                  title: 'Quick Connect',
+                  subtitle: 'Scan QR code from desktop to connect instantly',
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const QRScannerScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Scan QR Code'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.withOpacity(0.2),
+                      foregroundColor: Colors.blue,
+                      minimumSize: const Size(double.infinity, 48),
+                    ),
+                  ),
+                ),
+
+              if (provider.connectedDevice == null) const SizedBox(height: 16),
+
               // Mouse Sensitivity
               _buildSettingCard(
                 title: 'Mouse Sensitivity',
@@ -69,6 +95,34 @@ class SettingsScreen extends StatelessWidget {
                       style: const TextStyle(color: Colors.white70),
                     ),
                   ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Reverse Scroll
+              _buildSettingCard(
+                title: 'Reverse Scroll',
+                subtitle: 'Enable natural/reverse scrolling like trackpads',
+                child: SwitchListTile(
+                  value: provider.appSettings.reverseScroll,
+                  onChanged: (value) {
+                    provider.updateReverseScroll(value);
+                  },
+                  title: Text(
+                    provider.appSettings.reverseScroll
+                        ? 'Natural'
+                        : 'Traditional',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  subtitle: Text(
+                    provider.appSettings.reverseScroll
+                        ? 'Scroll content follows finger movement'
+                        : 'Scroll content moves opposite to finger',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  activeColor: Colors.blue,
+                  contentPadding: EdgeInsets.zero,
                 ),
               ),
 

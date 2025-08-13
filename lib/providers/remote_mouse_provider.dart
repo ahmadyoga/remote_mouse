@@ -68,11 +68,13 @@ class RemoteMouseProvider with ChangeNotifier {
           AppConstants.scrollSensitivity;
       final doubleClickThreshold = prefs.getDouble('double_click_threshold') ??
           AppConstants.doubleClickThreshold;
+      final reverseScroll = prefs.getBool('reverse_scroll') ?? false;
 
       _appSettings = AppSettings(
         mouseSensitivity: mouseSensitivity,
         scrollSensitivity: scrollSensitivity,
         doubleClickThreshold: doubleClickThreshold,
+        reverseScroll: reverseScroll,
       );
     } catch (e) {
       print('Failed to load settings: $e');
@@ -89,6 +91,7 @@ class RemoteMouseProvider with ChangeNotifier {
           'scroll_sensitivity', _appSettings.scrollSensitivity);
       await prefs.setDouble(
           'double_click_threshold', _appSettings.doubleClickThreshold);
+      await prefs.setBool('reverse_scroll', _appSettings.reverseScroll);
     } catch (e) {
       print('Failed to save settings: $e');
     }
@@ -102,7 +105,6 @@ class RemoteMouseProvider with ChangeNotifier {
 
       // Listen to network events for mouse control
       _networkService.eventStream.listen((MouseEvent event) {
-        print('Received mouse event: $event');
         _handleMouseEvent(event);
       });
 
@@ -187,19 +189,8 @@ class RemoteMouseProvider with ChangeNotifier {
   }
 
   void _handleGestureEvent(MouseEvent event) {
-    switch (event.gesture) {
-      case 'double_click':
-        _mouseController!.click('left');
-        _mouseController!.click('left');
-        break;
-      case 'two_finger_scroll':
-        final data = event.data;
-        if (data != null) {
-          final direction = data['direction'] as String? ?? 'up';
-          final amount = data['amount'] as double? ?? 1.0;
-          _mouseController!.scroll(direction, amount: amount);
-        }
-        break;
+    if (event.gesture != null) {
+      _mouseController!.handleGesture(event.gesture!, data: event.data);
     }
   }
 
@@ -394,6 +385,13 @@ class RemoteMouseProvider with ChangeNotifier {
 
   void updateDoubleClickThreshold(double threshold) {
     _appSettings = _appSettings.copyWith(doubleClickThreshold: threshold);
+    _gestureService.updateSettings(_appSettings);
+    _saveSettings();
+    notifyListeners();
+  }
+
+  void updateReverseScroll(bool reverseScroll) {
+    _appSettings = _appSettings.copyWith(reverseScroll: reverseScroll);
     _gestureService.updateSettings(_appSettings);
     _saveSettings();
     notifyListeners();
