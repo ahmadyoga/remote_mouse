@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/remote_mouse_provider.dart';
 import '../models/app_state.dart' as app_state;
+import 'settings_screen.dart';
 
 class TouchpadScreen extends StatelessWidget {
   const TouchpadScreen({super.key});
@@ -22,9 +23,9 @@ class TouchpadScreen extends StatelessWidget {
                   onPanEnd: provider.onPanEnd,
                   onTap: provider.onTap,
                   onLongPress: provider.onLongPress,
-                  // onScaleStart: provider.onScaleStart,
-                  // onScaleUpdate: provider.onScaleUpdate,
-                  // onScaleEnd: provider.onScaleEnd,
+                  onScaleStart: provider.onScaleStart,
+                  onScaleUpdate: provider.onScaleUpdate,
+                  onScaleEnd: provider.onScaleEnd,
                   child: Container(
                     color: Colors.black,
                     child: const Center(
@@ -45,45 +46,31 @@ class TouchpadScreen extends StatelessWidget {
               Positioned(
                 top: MediaQuery.of(context).padding.top + 16,
                 left: 16,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _getConnectionColor(provider.connectionState),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _getConnectionIcon(provider.connectionState),
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _getConnectionText(provider.connectionState),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                child: _buildConnectionStatus(context, provider),
               ),
 
-              // Settings button
+              // Settings and connection buttons
               Positioned(
                 top: MediaQuery.of(context).padding.top + 16,
                 right: 16,
-                child: IconButton(
-                  onPressed: () => _showConnectionDialog(context, provider),
-                  icon: const Icon(
-                    Icons.settings,
-                    color: Colors.white54,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      onPressed: () => _showConnectionDialog(context, provider),
+                      icon: const Icon(
+                        Icons.wifi,
+                        color: Colors.white54,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => _navigateToSettings(context),
+                      icon: const Icon(
+                        Icons.settings,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
@@ -230,11 +217,63 @@ class TouchpadScreen extends StatelessWidget {
     }
   }
 
+  Widget _buildConnectionStatus(
+      BuildContext context, RemoteMouseProvider provider) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: _getConnectionColor(provider.connectionState),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _getConnectionIcon(provider.connectionState),
+                color: Colors.white,
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _getConnectionText(provider.connectionState),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          if (provider.connectionState == app_state.ConnectionState.connected &&
+              provider.connectedDevice != null)
+            Text(
+              '${provider.connectedDevice!.ip}:${provider.connectedDevice!.port}',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 10,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   void _showConnectionDialog(
       BuildContext context, RemoteMouseProvider provider) {
     showDialog(
       context: context,
       builder: (context) => ConnectionDialog(provider: provider),
+    );
+  }
+
+  void _navigateToSettings(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const SettingsScreen(),
+      ),
     );
   }
 }

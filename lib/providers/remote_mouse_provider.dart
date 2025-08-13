@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_state.dart';
 import '../models/device_info.dart';
 import '../models/mouse_event.dart';
@@ -22,6 +23,10 @@ class RemoteMouseProvider with ChangeNotifier {
   int _serverPort = AppConstants.defaultPort;
   bool _isServerRunning = false;
 
+  // Settings
+  AppSettings _appSettings = AppSettings();
+  AppSettings get appSettings => _appSettings;
+
   // Services
   final DeviceDiscoveryService _discoveryService = DeviceDiscoveryService();
   final NetworkService _networkService = NetworkService();
@@ -41,6 +46,9 @@ class RemoteMouseProvider with ChangeNotifier {
   Future<void> initialize({required AppMode mode}) async {
     _appMode = mode;
 
+    // Load saved settings
+    await _loadSettings();
+
     if (_appMode == AppMode.desktop) {
       _initializeDesktop();
     } else {
@@ -48,6 +56,42 @@ class RemoteMouseProvider with ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final mouseSensitivity =
+          prefs.getDouble('mouse_sensitivity') ?? AppConstants.mouseSensitivity;
+      final scrollSensitivity = prefs.getDouble('scroll_sensitivity') ??
+          AppConstants.scrollSensitivity;
+      final doubleClickThreshold = prefs.getDouble('double_click_threshold') ??
+          AppConstants.doubleClickThreshold;
+
+      _appSettings = AppSettings(
+        mouseSensitivity: mouseSensitivity,
+        scrollSensitivity: scrollSensitivity,
+        doubleClickThreshold: doubleClickThreshold,
+      );
+    } catch (e) {
+      print('Failed to load settings: $e');
+      _appSettings = AppSettings();
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.setDouble('mouse_sensitivity', _appSettings.mouseSensitivity);
+      await prefs.setDouble(
+          'scroll_sensitivity', _appSettings.scrollSensitivity);
+      await prefs.setDouble(
+          'double_click_threshold', _appSettings.doubleClickThreshold);
+    } catch (e) {
+      print('Failed to save settings: $e');
+    }
   }
 
   void _initializeDesktop() {
@@ -68,10 +112,10 @@ class RemoteMouseProvider with ChangeNotifier {
         _connectionState = state;
         notifyListeners();
       });
-      
+
       // Start the TCP server
       _startDesktopServer();
-      
+
       print('Desktop initialization completed');
     } catch (e) {
       print('Failed to initialize desktop mode: $e');
@@ -97,6 +141,7 @@ class RemoteMouseProvider with ChangeNotifier {
   void _initializeMobile() {
     // Initialize gesture service for mobile
     _gestureService.initialize();
+    _gestureService.updateSettings(_appSettings);
 
     // Listen to gesture events and send them over network
     _gestureService.gestureStream.listen((MouseEvent event) {
@@ -112,7 +157,7 @@ class RemoteMouseProvider with ChangeNotifier {
 
   void _handleMouseEvent(MouseEvent event) {
     print('Handling mouse event: $event');
-    
+
     if (_mouseController == null) {
       print('Mouse controller is null!');
       return;
@@ -322,6 +367,35 @@ class RemoteMouseProvider with ChangeNotifier {
 
   void clearError() {
     _errorMessage = null;
+    notifyListeners();
+  }
+
+  // Settings management
+  void updateSettings(AppSettings settings) {
+    _appSettings = settings;
+    _gestureService.updateSettings(settings);
+    _saveSettings();
+    notifyListeners();
+  }
+
+  void updateMouseSensitivity(double sensitivity) {
+    _appSettings = _appSettings.copyWith(mouseSensitivity: sensitivity);
+    _gestureService.updateSettings(_appSettings);
+    _saveSettings();
+    notifyListeners();
+  }
+
+  void updateScrollSensitivity(double sensitivity) {
+    _appSettings = _appSettings.copyWith(scrollSensitivity: sensitivity);
+    _gestureService.updateSettings(_appSettings);
+    _saveSettings();
+    notifyListeners();
+  }
+
+  void updateDoubleClickThreshold(double threshold) {
+    _appSettings = _appSettings.copyWith(doubleClickThreshold: threshold);
+    _gestureService.updateSettings(_appSettings);
+    _saveSettings();
     notifyListeners();
   }
 

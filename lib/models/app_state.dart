@@ -11,6 +11,38 @@ enum AppMode {
   desktop,
 }
 
+class AppSettings {
+  double mouseSensitivity;
+  double scrollSensitivity;
+  int tapTimeout;
+  double tapThreshold;
+  double doubleClickThreshold;
+
+  AppSettings({
+    this.mouseSensitivity = 2.0,
+    this.scrollSensitivity = 1.5,
+    this.tapTimeout = 200,
+    this.tapThreshold = 10.0,
+    this.doubleClickThreshold = 300,
+  });
+
+  AppSettings copyWith({
+    double? mouseSensitivity,
+    double? scrollSensitivity,
+    int? tapTimeout,
+    double? tapThreshold,
+    double? doubleClickThreshold,
+  }) {
+    return AppSettings(
+      mouseSensitivity: mouseSensitivity ?? this.mouseSensitivity,
+      scrollSensitivity: scrollSensitivity ?? this.scrollSensitivity,
+      tapTimeout: tapTimeout ?? this.tapTimeout,
+      tapThreshold: tapThreshold ?? this.tapThreshold,
+      doubleClickThreshold: doubleClickThreshold ?? this.doubleClickThreshold,
+    );
+  }
+}
+
 class AppConstants {
   static const int defaultPort = 1978;
   static const String serviceName = '_remotemouse._tcp';
@@ -18,7 +50,7 @@ class AppConstants {
   static const Duration discoveryTimeout = Duration(seconds: 5);
   static const Duration heartbeatInterval = Duration(seconds: 30);
 
-  // Gesture sensitivity settings
+  // Default gesture sensitivity settings (can be overridden by AppSettings)
   static const double mouseSensitivity = 2.0;
   static const double scrollSensitivity = 1.5;
   static const int tapTimeout = 200; // milliseconds

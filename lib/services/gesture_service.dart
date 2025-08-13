@@ -17,12 +17,21 @@ class GestureService {
   Offset? _lastPanPosition;
   bool _isPanning = false;
 
+  // Settings
+  AppSettings _settings = AppSettings();
+  AppSettings get settings => _settings;
+
   void initialize() {
     _gestureController = StreamController<MouseEvent>.broadcast();
   }
 
+  void updateSettings(AppSettings settings) {
+    _settings = settings;
+  }
+
   // Handle single finger pan (mouse movement)
   void onPanStart(DragStartDetails details) {
+    print('Pan started at: ${details.globalPosition}');
     _lastPanPosition = details.globalPosition;
     _isPanning = true;
   }
@@ -30,16 +39,18 @@ class GestureService {
   void onPanUpdate(DragUpdateDetails details) {
     if (_isPanning && _lastPanPosition != null) {
       final dx = (details.globalPosition.dx - _lastPanPosition!.dx) *
-          AppConstants.mouseSensitivity;
+          _settings.mouseSensitivity;
       final dy = (details.globalPosition.dy - _lastPanPosition!.dy) *
-          AppConstants.mouseSensitivity;
+          _settings.mouseSensitivity;
 
       _gestureController!.add(MouseEvent.move(dx, dy));
+      print('Pan updated at: ${details.globalPosition}');
       _lastPanPosition = details.globalPosition;
     }
   }
 
   void onPanEnd(DragEndDetails details) {
+    print('Pan ended at: ${details.velocity.pixelsPerSecond}');
     _isPanning = false;
     _lastPanPosition = null;
   }
@@ -50,7 +61,7 @@ class GestureService {
 
     if (_lastTapTime != null &&
         now.difference(_lastTapTime!).inMilliseconds <
-            AppConstants.doubleClickThreshold) {
+            _settings.doubleClickThreshold) {
       _tapCount++;
     } else {
       _tapCount = 1;
@@ -61,7 +72,7 @@ class GestureService {
     // Wait to see if this is part of a double-tap
     _tapTimer?.cancel();
     _tapTimer = Timer(
-        Duration(milliseconds: AppConstants.doubleClickThreshold.round()), () {
+        Duration(milliseconds: _settings.doubleClickThreshold.round()), () {
       if (_tapCount == 1) {
         _gestureController!.add(MouseEvent.click('left'));
       } else if (_tapCount >= 2) {
@@ -79,7 +90,7 @@ class GestureService {
   void onScaleUpdate(ScaleUpdateDetails details) {
     if (details.pointerCount == 2) {
       // Two-finger scroll
-      final dy = -details.focalPointDelta.dy * AppConstants.scrollSensitivity;
+      final dy = -details.focalPointDelta.dy * _settings.scrollSensitivity;
 
       if (dy.abs() > 1.0) {
         final direction = dy > 0 ? 'up' : 'down';
