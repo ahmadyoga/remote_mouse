@@ -1,4 +1,15 @@
 import 'dart:io';
+import 'dart:ffi';
+import 'package:ffi/ffi.dart';
+
+// Win32 POINT structure
+final class POINT extends Struct {
+  @Int32()
+  external int x;
+  
+  @Int32()
+  external int y;
+}
 
 abstract class MouseController {
   void moveMouse(double dx, double dy);
@@ -20,24 +31,94 @@ class MouseControllerFactory {
   }
 }
 
-// Windows implementation using PowerShell scripts for mouse control
+// Windows implementation using FFI for direct Win32 API calls
 class WindowsMouseController implements MouseController {
+  late final DynamicLibrary _user32;
+  late final int Function(int, int) _setCursorPos;
+  late final int Function(Pointer<POINT>) _getCursorPos;
+  late final void Function(int, int, int, int, int) _mouseEvent;
+
   WindowsMouseController() {
-    print('Windows mouse controller initialized');
+    try {
+      _user32 = DynamicLibrary.open('user32.dll');
+      _setCursorPos = _user32.lookupFunction<
+          Int32 Function(Int32, Int32),
+          int Function(int, int)>('SetCursorPos');
+      _getCursorPos = _user32.lookupFunction<
+          Int32 Function(Pointer<POINT>),
+          int Function(Pointer<POINT>)>('GetCursorPos');
+      _mouseEvent = _user32.lookupFunction<
+          Void Function(Uint32, Uint32, Uint32, Uint32, Uint32),
+          void Function(int, int, int, int, int)>('mouse_event');
+      print('Windows FFI mouse controller initialized');
+    } catch (e) {
+      print('FFI initialization failed, falling back to PowerShell: $e');
+      _initializePowerShell();
+    }
+  }
+
+  bool _usePowerShell = false;
+
+  void _initializePowerShell() {
+    _usePowerShell = true;
+    print('Windows PowerShell mouse controller initialized');
   }
 
   @override
   void moveMouse(double dx, double dy) {
+    if (_usePowerShell) {
+      _moveMousePowerShell(dx, dy);
+      return;
+    }
+
     try {
+      final point = calloc<POINT>();
+      _getCursorPos(point);
+      final newX = point.ref.x + dx.round();
+      final newY = point.ref.y + dy.round();
+      _setCursorPos(newX, newY);
+      calloc.free(point);
+    } catch (e) {
+      print('FFI mouse move error, falling back to PowerShell: $e');
+      _usePowerShell = true;
+      _moveMousePowerShell(dx, dy);
+    }
+  }
+
+  void _moveMousePowerShell(double dx, double dy) {
+    try {
+      final deltaX = dx.round();
+      final deltaY = dy.round();
+      
       final script = '''
-        Add-Type -AssemblyName System.Windows.Forms
-        \$currentPos = [System.Windows.Forms.Cursor]::Position
-        \$newX = \$currentPos.X + $dx
-        \$newY = \$currentPos.Y + $dy
-        [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(\$newX, \$newY)
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class MouseHelper {
+    [DllImport("user32.dll")]
+    public static extern bool GetCursorPos(out POINT lpPoint);
+    
+    [DllImport("user32.dll")]
+    public static extern bool SetCursorPos(int X, int Y);
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT {
+        public int X;
+        public int Y;
+    }
+    
+    public static void MoveMouse(int deltaX, int deltaY) {
+        POINT current;
+        GetCursorPos(out current);
+        SetCursorPos(current.X + deltaX, current.Y + deltaY);
+    }
+}
+"@
+
+[MouseHelper]::MoveMouse($deltaX, $deltaY)
       ''';
 
-      Process.runSync('powershell', ['-Command', script]);
+      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
     } catch (e) {
       print('Windows mouse move error: $e');
     }
@@ -45,52 +126,48 @@ class WindowsMouseController implements MouseController {
 
   @override
   void click(String button) {
+    if (_usePowerShell) {
+      _clickPowerShell(button);
+      return;
+    }
+
     try {
-      final buttonFlag = _getClickFlag(button);
+      final leftDown = button.toLowerCase() == 'left' ? 0x0002 : (button.toLowerCase() == 'right' ? 0x0008 : 0x0020);
+      final leftUp = button.toLowerCase() == 'left' ? 0x0004 : (button.toLowerCase() == 'right' ? 0x0010 : 0x0040);
+      
+      _mouseEvent(leftDown, 0, 0, 0, 0);
+      _mouseEvent(leftUp, 0, 0, 0, 0);
+    } catch (e) {
+      print('FFI mouse click error, falling back to PowerShell: $e');
+      _usePowerShell = true;
+      _clickPowerShell(button);
+    }
+  }
+
+  void _clickPowerShell(String button) {
+    try {
+      final leftDown = button.toLowerCase() == 'left' ? 0x0002 : (button.toLowerCase() == 'right' ? 0x0008 : 0x0020);
+      final leftUp = button.toLowerCase() == 'left' ? 0x0004 : (button.toLowerCase() == 'right' ? 0x0010 : 0x0040);
+      
       final script = '''
-        Add-Type -AssemblyName System.Windows.Forms
-        Add-Type @"
-          using System;
-          using System.Diagnostics;
-          using System.Runtime.InteropServices;
-          using System.Windows.Forms;
-          public class MouseOperations {
-            [Flags]
-            public enum MouseEventFlags {
-              LeftDown = 0x00000002,
-              LeftUp = 0x00000004,
-              MiddleDown = 0x00000020,
-              MiddleUp = 0x00000040,
-              Move = 0x00000001,
-              Absolute = 0x00008000,
-              RightDown = 0x00000008,
-              RightUp = 0x00000010
-            }
-            [DllImport("user32.dll", EntryPoint = "SetCursorPos")]
-            [return: MarshalAs(UnmanagedType.Bool)]
-            private static extern bool SetCursorPos(int x, int y);
-            [DllImport("user32.dll")]
-            [return: MarshalAs(UnmanagedType.Bool)]
-            private static extern bool GetCursorPos(out MousePoint lpMousePoint);
-            [DllImport("user32.dll")]
-            private static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
-            [StructLayout(LayoutKind.Sequential)]
-            public struct MousePoint {
-              public int X;
-              public int Y;
-              public MousePoint(int x, int y) { X = x; Y = y; }
-            }
-            public static void MouseClick(MouseEventFlags value) {
-              MousePoint position;
-              GetCursorPos(out position);
-              mouse_event((int)value, position.X, position.Y, 0, 0);
-            }
-          }
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class MouseClicker {
+    [DllImport("user32.dll")]
+    public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
+    
+    public static void Click(int downFlag, int upFlag) {
+        mouse_event(downFlag, 0, 0, 0, 0);
+        mouse_event(upFlag, 0, 0, 0, 0);
+    }
+}
 "@
-        [MouseOperations]::MouseClick([MouseOperations+MouseEventFlags]::$buttonFlag)
+
+[MouseClicker]::Click($leftDown, $leftUp)
       ''';
 
-      Process.runSync('powershell', ['-Command', script]);
+      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
     } catch (e) {
       print('Windows mouse click error: $e');
     }
@@ -98,25 +175,43 @@ class WindowsMouseController implements MouseController {
 
   @override
   void scroll(String direction, {double amount = 1.0}) {
+    if (_usePowerShell) {
+      _scrollPowerShell(direction, amount: amount);
+      return;
+    }
+
     try {
-      final delta =
-          direction == 'up' ? (120 * amount).round() : (-120 * amount).round();
+      final delta = direction == 'up' ? (120 * amount).round() : (-120 * amount).round();
+      _mouseEvent(0x0800, 0, 0, delta, 0); // MOUSEEVENTF_WHEEL = 0x0800
+    } catch (e) {
+      print('FFI mouse scroll error, falling back to PowerShell: $e');
+      _usePowerShell = true;
+      _scrollPowerShell(direction, amount: amount);
+    }
+  }
+
+  void _scrollPowerShell(String direction, {double amount = 1.0}) {
+    try {
+      final delta = direction == 'up' ? (120 * amount).round() : (-120 * amount).round();
+      
       final script = '''
-        Add-Type @"
-          using System;
-          using System.Runtime.InteropServices;
-          public class MouseOperations {
-            [DllImport("user32.dll")]
-            private static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
-            public static void MouseWheel(int delta) {
-              mouse_event(0x0800, 0, 0, delta, 0);
-            }
-          }
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class MouseScroller {
+    [DllImport("user32.dll")]
+    public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
+    
+    public static void Scroll(int delta) {
+        mouse_event(0x0800, 0, 0, delta, 0);
+    }
+}
 "@
-        [MouseOperations]::MouseWheel($delta)
+
+[MouseScroller]::Scroll($delta)
       ''';
 
-      Process.runSync('powershell', ['-Command', script]);
+      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
     } catch (e) {
       print('Windows mouse scroll error: $e');
     }
@@ -224,7 +319,7 @@ class WindowsMouseController implements MouseController {
         [KeyboardOperations]::SimulateCtrlMouseWheel(\$$isZoomIn)
       ''';
 
-      Process.runSync('powershell', ['-Command', script]);
+      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
     }
   }
 
@@ -280,7 +375,7 @@ class WindowsMouseController implements MouseController {
       [KeyboardOperations]::SimulateSwipe("$direction")
     ''';
 
-    Process.runSync('powershell', ['-Command', script]);
+    Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
   }
 
   void _performWindowsFourFingerSwipe(String direction) {
@@ -338,7 +433,7 @@ class WindowsMouseController implements MouseController {
       [KeyboardOperations]::SimulateFourFingerSwipe("$direction")
     ''';
 
-    Process.runSync('powershell', ['-Command', script]);
+    Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
   }
 
   @override

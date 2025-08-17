@@ -17,6 +17,9 @@ class NetworkService {
   StreamController<ConnectionState>? _connectionController;
   Timer? _heartbeatTimer;
 
+  // Buffer for handling fragmented JSON messages
+  String _messageBuffer = '';
+
   ConnectionState _connectionState = ConnectionState.disconnected;
   ConnectionState get connectionState => _connectionState;
 
@@ -89,6 +92,7 @@ class NetworkService {
 
   void _handleClientConnection(Socket client) {
     _clientSocket = client;
+    _messageBuffer = ''; // Clear buffer for new connection
     _updateConnectionState(ConnectionState.connected);
     _startHeartbeat();
 
@@ -109,15 +113,38 @@ class NetworkService {
 
   void _handleClientData(List<int> data) {
     try {
-      final jsonString = utf8.decode(data);
-      final jsonData = json.decode(jsonString);
-      final mouseEvent = MouseEvent.fromJson(jsonData);
-      print('Parsed mouse event: $mouseEvent');
-      print('Adding event to stream controller...');
-      _eventController!.add(mouseEvent);
-      print('Event added to stream');
+      final chunk = utf8.decode(data);
+      _messageBuffer += chunk;
+      
+      // Process complete messages (separated by newlines)
+      _processBufferedMessages();
     } catch (e) {
       print('Data parsing error: $e');
+      // Reset buffer on error to prevent cascade failures
+      _messageBuffer = '';
+    }
+  }
+
+  void _processBufferedMessages() {
+    final lines = _messageBuffer.split('\n');
+    
+    // Keep the last line in buffer (might be incomplete)
+    _messageBuffer = lines.last;
+    
+    // Process all complete lines (except the last one)
+    for (int i = 0; i < lines.length - 1; i++) {
+      final line = lines[i].trim();
+      if (line.isEmpty) continue;
+      
+      try {
+        final jsonData = json.decode(line);
+        final mouseEvent = MouseEvent.fromJson(jsonData);
+        print('Parsed mouse event: $mouseEvent');
+        _eventController!.add(mouseEvent);
+      } catch (e) {
+        print('JSON parsing error: $e');
+        print('Problematic JSON: $line');
+      }
     }
   }
 
@@ -140,7 +167,8 @@ class NetworkService {
         _connectionState == ConnectionState.connected) {
       try {
         final jsonString = json.encode(event.toJson());
-        _clientSocket!.add(utf8.encode(jsonString));
+        // Add newline delimiter to separate messages
+        _clientSocket!.add(utf8.encode(jsonString + '\n'));
       } catch (e) {
         developer.log('Send error: $e');
         _updateConnectionState(ConnectionState.error);
@@ -156,7 +184,8 @@ class NetworkService {
           'type': 'heartbeat',
           'timestamp': DateTime.now().millisecondsSinceEpoch
         });
-        _clientSocket!.write(heartbeat);
+        // Add newline delimiter for consistency
+        _clientSocket!.write(heartbeat + '\n');
       } catch (e) {
         print('Heartbeat error: $e');
       }

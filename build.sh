@@ -46,7 +46,7 @@ build_for_platform() {
         "windows")
             flutter build windows --release
             if [ $? -eq 0 ]; then
-                cp -r build/windows/runner/Release/* "$output_dir/"
+                cp build/windows/x64/runner/Release/* "$output_dir/"
                 echo "✅ Windows build: $output_dir/"
             fi
             ;;
