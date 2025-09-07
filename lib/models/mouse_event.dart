@@ -10,6 +10,9 @@ class MouseEvent {
   final String? scroll;
   final String? tap;
   final String? gesture;
+  final String? keyboard;
+  final String? text;
+  final String? key;
   final Map<String, dynamic>? data;
 
   MouseEvent({
@@ -19,6 +22,9 @@ class MouseEvent {
     this.scroll,
     this.tap,
     this.gesture,
+    this.keyboard,
+    this.text,
+    this.key,
     this.data,
   });
 
@@ -34,6 +40,9 @@ class MouseEvent {
           {Map<String, dynamic>? data}) =>
       MouseEvent(gesture: gestureType, data: data);
 
+  factory MouseEvent.keyboard(String action, {String? text, String? key}) =>
+      MouseEvent(keyboard: action, text: text, key: key);
+
   factory MouseEvent.fromJson(Map<String, dynamic> json) =>
       _$MouseEventFromJson(json);
 
@@ -41,6 +50,6 @@ class MouseEvent {
 
   @override
   String toString() {
-    return 'MouseEvent(dx: $dx, dy: $dy, click: $click, scroll: $scroll, tap: $tap, gesture: $gesture, data: $data)';
+    return 'MouseEvent(dx: $dx, dy: $dy, click: $click, scroll: $scroll, tap: $tap, gesture: $gesture, keyboard: $keyboard, text: $text, key: $key, data: $data)';
   }
 }

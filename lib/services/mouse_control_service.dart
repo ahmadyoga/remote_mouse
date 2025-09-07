@@ -16,6 +16,7 @@ abstract class MouseController {
   void click(String button);
   void scroll(String direction, {double amount = 1.0});
   void handleGesture(String gestureType, {Map<String, dynamic>? data});
+  void handleKeyboard(String action, {String? text, String? key});
   void dispose();
 }
 
@@ -257,6 +258,190 @@ public class MouseScroller {
       }
     } catch (e) {
       print('Windows gesture handling error: $e');
+    }
+  }
+
+  @override
+  void handleKeyboard(String action, {String? text, String? key}) {
+    try {
+      switch (action) {
+        case 'type':
+          if (text != null) {
+            _typeText(text);
+          }
+          break;
+        case 'key':
+          if (key != null) {
+            _pressKey(key);
+          }
+          break;
+        case 'backspace':
+          _pressKey('BackSpace');
+          break;
+        case 'enter':
+          _pressKey('Return');
+          break;
+        case 'space':
+          _pressKey('space');
+          break;
+        case 'tab':
+          _pressKey('Tab');
+          break;
+        case 'escape':
+          _pressKey('Escape');
+          break;
+        default:
+          print('Unsupported keyboard action: $action');
+      }
+    } catch (e) {
+      print('Windows keyboard handling error: $e');
+    }
+  }
+
+  void _typeText(String text) {
+    if (_usePowerShell) {
+      _typeTextPowerShell(text);
+      return;
+    }
+
+    try {
+      // For FFI implementation, we'll fall back to PowerShell for now
+      // as typing text requires more complex Win32 API calls
+      _typeTextPowerShell(text);
+    } catch (e) {
+      print('FFI text typing error: $e');
+      _typeTextPowerShell(text);
+    }
+  }
+
+  void _typeTextPowerShell(String text) {
+    try {
+      // Escape special characters for PowerShell
+      final escapedText = text
+          .replaceAll('\\', '\\\\')
+          .replaceAll('"', '\\"')
+          .replaceAll('\$', '\\\$')
+          .replaceAll('`', '\\`');
+
+      final script = '''
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+public class KeyboardHelper {
+    public static void TypeText(string text) {
+        SendKeys.SendWait(text);
+    }
+}
+"@
+
+[KeyboardHelper]::TypeText("$escapedText")
+      ''';
+
+      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
+    } catch (e) {
+      print('Windows text typing error: $e');
+    }
+  }
+
+  void _pressKey(String key) {
+    if (_usePowerShell) {
+      _pressKeyPowerShell(key);
+      return;
+    }
+
+    try {
+      // For FFI implementation, we'll fall back to PowerShell for now
+      _pressKeyPowerShell(key);
+    } catch (e) {
+      print('FFI key press error: $e');
+      _pressKeyPowerShell(key);
+    }
+  }
+
+  void _pressKeyPowerShell(String key) {
+    try {
+      // Map common keys to SendKeys format
+      String sendKeysFormat = _mapKeyToSendKeys(key);
+      
+      final script = '''
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+public class KeyboardHelper {
+    public static void PressKey(string key) {
+        SendKeys.SendWait(key);
+    }
+}
+"@
+
+[KeyboardHelper]::PressKey("$sendKeysFormat")
+      ''';
+
+      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
+    } catch (e) {
+      print('Windows key press error: $e');
+    }
+  }
+
+  String _mapKeyToSendKeys(String key) {
+    switch (key.toLowerCase()) {
+      case 'backspace':
+        return '{BACKSPACE}';
+      case 'return':
+      case 'enter':
+        return '{ENTER}';
+      case 'space':
+        return ' ';
+      case 'tab':
+        return '{TAB}';
+      case 'escape':
+        return '{ESC}';
+      case 'delete':
+        return '{DELETE}';
+      case 'home':
+        return '{HOME}';
+      case 'end':
+        return '{END}';
+      case 'pageup':
+        return '{PGUP}';
+      case 'pagedown':
+        return '{PGDN}';
+      case 'up':
+        return '{UP}';
+      case 'down':
+        return '{DOWN}';
+      case 'left':
+        return '{LEFT}';
+      case 'right':
+        return '{RIGHT}';
+      case 'f1':
+        return '{F1}';
+      case 'f2':
+        return '{F2}';
+      case 'f3':
+        return '{F3}';
+      case 'f4':
+        return '{F4}';
+      case 'f5':
+        return '{F5}';
+      case 'f6':
+        return '{F6}';
+      case 'f7':
+        return '{F7}';
+      case 'f8':
+        return '{F8}';
+      case 'f9':
+        return '{F9}';
+      case 'f10':
+        return '{F10}';
+      case 'f11':
+        return '{F11}';
+      case 'f12':
+        return '{F12}';
+      default:
+        return key;
     }
   }
 
@@ -563,6 +748,64 @@ class LinuxMouseController implements MouseController {
       }
     } catch (e) {
       print('Linux gesture handling error: $e');
+    }
+  }
+
+  @override
+  void handleKeyboard(String action, {String? text, String? key}) {
+    if (!_hasXdotool) {
+      print('xdotool not available for keyboard handling');
+      return;
+    }
+
+    try {
+      switch (action) {
+        case 'type':
+          if (text != null) {
+            _typeText(text);
+          }
+          break;
+        case 'key':
+          if (key != null) {
+            _pressKey(key);
+          }
+          break;
+        case 'backspace':
+          _pressKey('BackSpace');
+          break;
+        case 'enter':
+          _pressKey('Return');
+          break;
+        case 'space':
+          _pressKey('space');
+          break;
+        case 'tab':
+          _pressKey('Tab');
+          break;
+        case 'escape':
+          _pressKey('Escape');
+          break;
+        default:
+          print('Unsupported keyboard action: $action');
+      }
+    } catch (e) {
+      print('Linux keyboard handling error: $e');
+    }
+  }
+
+  void _typeText(String text) {
+    try {
+      Process.runSync('xdotool', ['type', text]);
+    } catch (e) {
+      print('Linux text typing error: $e');
+    }
+  }
+
+  void _pressKey(String key) {
+    try {
+      Process.runSync('xdotool', ['key', key]);
+    } catch (e) {
+      print('Linux key press error: $e');
     }
   }
 

@@ -4,6 +4,7 @@ import '../providers/remote_mouse_provider.dart';
 import '../models/app_state.dart' as app_state;
 import 'settings_screen.dart';
 import 'qr_scanner_screen.dart';
+import 'keyboard_screen.dart';
 
 class TouchpadScreen extends StatelessWidget {
   const TouchpadScreen({super.key});
@@ -64,6 +65,14 @@ class TouchpadScreen extends StatelessWidget {
                           color: Colors.white54,
                         ),
                       ),
+                    // Keyboard button
+                    IconButton(
+                      onPressed: () => _navigateToKeyboard(context),
+                      icon: const Icon(
+                        Icons.keyboard,
+                        color: Colors.white54,
+                      ),
+                    ),
                     IconButton(
                       onPressed: () => _showConnectionDialog(context, provider),
                       icon: const Icon(
@@ -166,7 +175,7 @@ class TouchpadScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
-                      'Tap settings to connect to a desktop device. Once connected, use this area as a touchpad.',
+                      'Tap settings to connect to a desktop device. Once connected, use this area as a touchpad or tap the keyboard icon to type.',
                       style: TextStyle(
                         color: Colors.white70,
                         fontSize: 14,
@@ -289,6 +298,14 @@ class TouchpadScreen extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const QRScannerScreen(),
+      ),
+    );
+  }
+
+  void _navigateToKeyboard(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const KeyboardScreen(),
       ),
     );
   }

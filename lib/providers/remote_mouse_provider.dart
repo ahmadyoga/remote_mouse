@@ -182,6 +182,10 @@ class RemoteMouseProvider with ChangeNotifier {
         // Handle gestures
         print('Handling gesture: ${event.gesture}');
         _handleGestureEvent(event);
+      } else if (event.keyboard != null) {
+        // Handle keyboard events
+        print('Handling keyboard: ${event.keyboard}');
+        _handleKeyboardEvent(event);
       }
     } catch (e) {
       print('Mouse event handling error: $e');
@@ -191,6 +195,16 @@ class RemoteMouseProvider with ChangeNotifier {
   void _handleGestureEvent(MouseEvent event) {
     if (event.gesture != null) {
       _mouseController!.handleGesture(event.gesture!, data: event.data);
+    }
+  }
+
+  void _handleKeyboardEvent(MouseEvent event) {
+    if (event.keyboard != null) {
+      _mouseController!.handleKeyboard(
+        event.keyboard!,
+        text: event.text,
+        key: event.key,
+      );
     }
   }
 
@@ -354,6 +368,42 @@ class RemoteMouseProvider with ChangeNotifier {
     if (_appMode == AppMode.mobile) {
       _gestureService.simulateScroll(direction);
     }
+  }
+
+  // Keyboard methods
+  void sendKeyboardEvent(String action, {String? text, String? key}) {
+    if (_appMode == AppMode.mobile) {
+      final event = MouseEvent.keyboard(action, text: text, key: key);
+      _networkService.sendMouseEvent(event);
+    }
+  }
+
+  void typeText(String text) {
+    sendKeyboardEvent('type', text: text);
+  }
+
+  void pressKey(String key) {
+    sendKeyboardEvent('key', key: key);
+  }
+
+  void pressBackspace() {
+    sendKeyboardEvent('backspace');
+  }
+
+  void pressEnter() {
+    sendKeyboardEvent('enter');
+  }
+
+  void pressSpace() {
+    sendKeyboardEvent('space');
+  }
+
+  void pressTab() {
+    sendKeyboardEvent('tab');
+  }
+
+  void pressEscape() {
+    sendKeyboardEvent('escape');
   }
 
   void clearError() {
