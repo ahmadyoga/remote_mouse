@@ -326,17 +326,30 @@ If FVM is not available, it falls back to system Flutter installation.
 
 ### Automated Builds (GitHub Actions)
 
-This project includes GitHub Actions workflows for automated building:
+This project includes multiple GitHub Actions workflows for automated building and testing:
 
-1. **With FVM** (`android-release.yml`):
-   - Uses Flutter Version Management for consistent builds
+1. **Release Builds** (`android-release.yml`):
+   - Uses FVM with Flutter 3.32.5 from `.fvmrc`
    - Triggered on version tags (e.g., `v1.0.0`)
-   - Requires `.fvm/fvm_config.json` configuration
+   - Builds APK and AAB for Android
+   - Creates GitHub releases with artifacts
 
-2. **Without FVM** (`android-release-no-fvm.yml`):
-   - Uses standard Flutter setup
-   - Triggered on tags ending with `-no-fvm` (e.g., `v1.0.0-no-fvm`)
-   - Can also be manually triggered with custom Flutter version
+2. **Alternative Release** (`android-release-no-fvm.yml`):
+   - Uses standard Flutter setup as fallback
+   - Triggered on tags ending with `-no-fvm`
+   - Manual trigger option with custom Flutter version
+
+3. **CI/CD Pipeline** (`ci-cd.yml`):
+   - Runs on every push and pull request
+   - Comprehensive testing (format, analyze, test)
+   - Builds debug APK and desktop apps
+   - Security scanning with Trivy
+   - Code coverage reporting
+
+4. **App Renaming** (`rename-remote-mouse-app.yml`):
+   - Manual trigger to rename app and package ID
+   - Uses FVM for consistent Flutter version
+   - Automatically removes itself after completion
 
 ### Creating a Release
 
@@ -352,12 +365,20 @@ This project includes GitHub Actions workflows for automated building:
 
 4. **Manual trigger:** Go to GitHub Actions → Select workflow → Run workflow
 
-The GitHub Action will:
+The GitHub Actions will:
 - Build Android APKs for different architectures
 - Build Android App Bundle (AAB)
-- Run tests and code analysis
-- Create a GitHub release with artifacts
-- Upload build artifacts
+- Build desktop applications (Linux/Windows)
+- Run comprehensive tests and code analysis
+- Security scanning and vulnerability assessment
+- Create GitHub releases with artifacts
+- Upload build artifacts (uses latest `upload-artifact@v4`)
+
+**Updated Dependencies:**
+- ✅ `actions/upload-artifact@v4` (was v3)
+- ✅ `actions/setup-java@v4` (was v3)
+- ✅ `actions/checkout@v4`
+- ✅ Uses FVM with Flutter 3.32.5 from `.fvmrc`
 
 ## Troubleshooting
 

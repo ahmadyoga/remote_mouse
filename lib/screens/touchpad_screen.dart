@@ -129,39 +129,69 @@ class TouchpadScreen extends StatelessWidget {
                 ),
               ),
 
-              // Scroll buttons
-              Positioned(
-                bottom: 80,
-                left: 16,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FloatingActionButton(
-                      heroTag: 'scroll_up',
-                      mini: true,
-                      backgroundColor: Colors.white24,
-                      onPressed: () => provider.simulateScroll('up'),
-                      child: const Icon(
-                        Icons.keyboard_arrow_up,
-                        color: Colors.white,
+                // Scroll buttons (vertical)
+                Positioned(
+                  bottom: 80,
+                  left: 16,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FloatingActionButton(
+                        heroTag: 'scroll_up',
+                        mini: true,
+                        backgroundColor: Colors.white24,
+                        onPressed: () => provider.simulateScroll('up'),
+                        child: const Icon(
+                          Icons.keyboard_arrow_up,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    FloatingActionButton(
-                      heroTag: 'scroll_down',
-                      mini: true,
-                      backgroundColor: Colors.white24,
-                      onPressed: () => provider.simulateScroll('down'),
-                      child: const Icon(
-                        Icons.keyboard_arrow_down,
-                        color: Colors.white,
+                      const SizedBox(height: 8),
+                      FloatingActionButton(
+                        heroTag: 'scroll_down',
+                        mini: true,
+                        backgroundColor: Colors.white24,
+                        onPressed: () => provider.simulateScroll('down'),
+                        child: const Icon(
+                          Icons.keyboard_arrow_down,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
-              // Instructions
+                // Horizontal scroll buttons
+                Positioned(
+                  bottom: 150,
+                  left: 80,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FloatingActionButton(
+                        heroTag: 'scroll_left',
+                        mini: true,
+                        backgroundColor: Colors.white24,
+                        onPressed: () => provider.simulateScroll('left'),
+                        child: const Icon(
+                          Icons.keyboard_arrow_left,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FloatingActionButton(
+                        heroTag: 'scroll_right',
+                        mini: true,
+                        backgroundColor: Colors.white24,
+                        onPressed: () => provider.simulateScroll('right'),
+                        child: const Icon(
+                          Icons.keyboard_arrow_right,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),              // Instructions
               if (provider.connectionState ==
                   app_state.ConnectionState.disconnected)
                 Positioned(

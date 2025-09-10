@@ -182,8 +182,15 @@ public class MouseClicker {
     }
 
     try {
-      final delta = direction == 'up' ? (120 * amount).round() : (-120 * amount).round();
-      _mouseEvent(0x0800, 0, 0, delta, 0); // MOUSEEVENTF_WHEEL = 0x0800
+      if (direction == 'left' || direction == 'right') {
+        // Horizontal scrolling
+        final delta = direction == 'right' ? (120 * amount).round() : (-120 * amount).round();
+        _mouseEvent(0x1000, 0, 0, delta, 0); // MOUSEEVENTF_HWHEEL = 0x1000
+      } else {
+        // Vertical scrolling - Fixed: Windows scroll delta should be positive for up, negative for down
+        final delta = direction == 'up' ? (120 * amount).round() : (-120 * amount).round();
+        _mouseEvent(0x0800, 0, 0, delta, 0); // MOUSEEVENTF_WHEEL = 0x0800
+      }
     } catch (e) {
       print('FFI mouse scroll error, falling back to PowerShell: $e');
       _usePowerShell = true;
@@ -193,8 +200,6 @@ public class MouseClicker {
 
   void _scrollPowerShell(String direction, {double amount = 1.0}) {
     try {
-      final delta = direction == 'up' ? (120 * amount).round() : (-120 * amount).round();
-      
       final script = '''
 Add-Type @"
 using System;
@@ -203,16 +208,29 @@ public class MouseScroller {
     [DllImport("user32.dll")]
     public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
     
-    public static void Scroll(int delta) {
-        mouse_event(0x0800, 0, 0, delta, 0);
+    public static void ScrollVertical(int delta) {
+        mouse_event(0x0800, 0, 0, delta, 0); // MOUSEEVENTF_WHEEL
+    }
+    
+    public static void ScrollHorizontal(int delta) {
+        mouse_event(0x1000, 0, 0, delta, 0); // MOUSEEVENTF_HWHEEL
     }
 }
 "@
 
-[MouseScroller]::Scroll($delta)
-      ''';
+''';
 
-      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
+      if (direction == 'left' || direction == 'right') {
+        // Horizontal scrolling
+        final delta = direction == 'right' ? (120 * amount).round() : (-120 * amount).round();
+        final fullScript = script + '[MouseScroller]::ScrollHorizontal($delta)';
+        Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', fullScript]);
+      } else {
+        // Vertical scrolling - Fixed: positive for up, negative for down
+        final delta = direction == 'up' ? (120 * amount).round() : (-120 * amount).round();
+        final fullScript = script + '[MouseScroller]::ScrollVertical($delta)';
+        Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', fullScript]);
+      }
     } catch (e) {
       print('Windows mouse scroll error: $e');
     }
@@ -688,7 +706,26 @@ class LinuxMouseController implements MouseController {
       // Use xdotool's more efficient approach - execute as a single command
       // Map amount to reasonable scroll steps (1-5 steps max for responsiveness)
       final steps = (amount / 2).round().clamp(1, 5);
-      final buttonNum = direction == 'up' ? '4' : '5';
+      
+      // Map direction to button numbers
+      // Vertical: up=4, down=5  Horizontal: left=6, right=7
+      String buttonNum;
+      switch (direction) {
+        case 'up':
+          buttonNum = '4';
+          break;
+        case 'down':
+          buttonNum = '5';
+          break;
+        case 'left':
+          buttonNum = '6';
+          break;
+        case 'right':
+          buttonNum = '7';
+          break;
+        default:
+          buttonNum = '5'; // default to down if unknown
+      }
 
       // Execute all scroll steps in a single command for better performance
       if (steps == 1) {

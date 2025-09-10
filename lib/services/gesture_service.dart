@@ -95,24 +95,48 @@ class GestureService {
       // Handle two-finger gestures
       if (details.pointerCount == 2) {
         // Two-finger scroll (vertical movement)
-        // Apply both scroll sensitivity and mouse sensitivity for more responsive scrolling
-        var dy = -(details.focalPoint.dy - _lastScalePosition!.dy) *
+        // Calculate raw scroll delta (positive = down gesture, negative = up gesture)
+        var dy = (details.focalPoint.dy - _lastScalePosition!.dy) *
             _settings.scrollSensitivity *
             _settings.mouseSensitivity;
 
-        // Apply reverse scroll if enabled
+        // Convert gesture direction to scroll direction
+        // Down gesture = scroll down, Up gesture = scroll up (natural scrolling)
+        var scrollDirection = dy > 0 ? 'down' : 'up';
+        
+        // Apply reverse scroll if enabled (inverts the direction)
         if (_settings.reverseScroll) {
-          dy = -dy;
+          scrollDirection = scrollDirection == 'up' ? 'down' : 'up';
         }
 
         // Optimize scroll threshold and amount for better responsiveness
         if (dy.abs() > 2.0) {
           // Increased threshold to reduce event frequency
-          final direction = dy > 0 ? 'up' : 'down';
           // Normalize amount to a reasonable range (1-10) for consistent feel across platforms
           final normalizedAmount = (dy.abs() / 10).clamp(1.0, 10.0);
           _gestureController!.add(MouseEvent.gesture('two_finger_scroll',
-              data: {'direction': direction, 'amount': normalizedAmount}));
+              data: {'direction': scrollDirection, 'amount': normalizedAmount}));
+        }
+
+        // Two-finger horizontal scroll 
+        var dx = (details.focalPoint.dx - _lastScalePosition!.dx) *
+            _settings.scrollSensitivity *
+            _settings.mouseSensitivity;
+
+        // Convert gesture direction to horizontal scroll direction
+        var hScrollDirection = dx > 0 ? 'right' : 'left';
+
+        // Apply reverse scroll if enabled (inverts the direction)
+        if (_settings.reverseScroll) {
+          hScrollDirection = hScrollDirection == 'left' ? 'right' : 'left';
+        }
+
+        // Horizontal scroll with higher threshold to avoid conflicts with vertical
+        if (dx.abs() > 3.0 && dy.abs() < 2.0) {
+          // Only trigger horizontal scroll if horizontal movement is dominant
+          final normalizedAmount = (dx.abs() / 10).clamp(1.0, 10.0);
+          _gestureController!.add(MouseEvent.gesture('two_finger_scroll',
+              data: {'direction': hScrollDirection, 'amount': normalizedAmount}));
         }
 
         // Pinch zoom detection
@@ -178,8 +202,9 @@ class GestureService {
   void simulateScroll(String direction, {double amount = 1.0}) {
     String finalDirection = direction;
 
-    // Apply reverse scroll if enabled
-    if (_settings.reverseScroll) {
+    // Apply reverse scroll if enabled, but ONLY for up/down scrolling
+    // Left/right scrolling and arrow keys are not affected by reverse scroll
+    if (_settings.reverseScroll && (direction == 'up' || direction == 'down')) {
       finalDirection = direction == 'up' ? 'down' : 'up';
     }
 

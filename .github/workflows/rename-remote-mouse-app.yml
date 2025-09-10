@@ -1,0 +1,165 @@
+name: Rename Remote Mouse App
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: 'App Display Name'
+        required: true
+        type: string
+        default: 'Remote Mouse'
+      package_name:
+        description: 'Package/Bundle ID'
+        required: true
+        type: string
+        default: 'com.example.remotemouse'
+  push:
+    branches:
+      - main
+
+jobs:
+  rename-app:
+    runs-on: ubuntu-latest
+    # Only run if not already renamed and either initial commit or manual dispatch
+    if: github.repository != 'Devweave/flutter-boilerplate' && (contains(github.event.head_commit.message, 'Initial commit') || github.event_name == 'workflow_dispatch')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if app already renamed
+        id: check-renamed
+        run: |
+          if grep -q "name: remote_mouse" pubspec.yaml; then
+            echo "renamed=false" >> $GITHUB_OUTPUT
+          else
+            echo "renamed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get app name and package from inputs/vars
+        if: steps.check-renamed.outputs.renamed == 'false'
+        id: get-params
+        run: |
+          APP_NAME="${{ github.event.inputs.app_name }}"
+          PACKAGE_NAME="${{ github.event.inputs.package_name }}"
+
+          # Fallback to repository variables if not provided
+          if [ -z "$APP_NAME" ]; then
+            APP_NAME="${{ vars.FLUTTER_APP_NAME || 'Remote Mouse' }}"
+          fi
+          if [ -z "$PACKAGE_NAME" ]; then
+            PACKAGE_NAME="${{ vars.FLUTTER_PACKAGE_NAME || 'com.example.remotemouse' }}"
+          fi
+
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          echo "Using App Name: $APP_NAME"
+          echo "Using Package Name: $PACKAGE_NAME"
+
+      - name: Setup Dart
+        if: steps.check-renamed.outputs.renamed == 'false'
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install FVM
+        if: steps.check-renamed.outputs.renamed == 'false'
+        run: dart pub global activate fvm
+
+      - name: Read Flutter version from .fvmrc
+        if: steps.check-renamed.outputs.renamed == 'false'
+        id: flutter-version
+        run: |
+          if [ -f .fvmrc ]; then
+            VERSION=$(jq -r '.flutter' .fvmrc 2>/dev/null || echo "3.32.5")
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "version=3.32.5" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install Flutter version with FVM
+        if: steps.check-renamed.outputs.renamed == 'false'
+        run: |
+          fvm install ${{ steps.flutter-version.outputs.version }}
+          fvm use ${{ steps.flutter-version.outputs.version }} --force
+
+      - name: Add FVM to PATH
+        if: steps.check-renamed.outputs.renamed == 'false'
+        run: echo "$HOME/fvm/versions/${{ steps.flutter-version.outputs.version }}/bin" >> $GITHUB_PATH
+
+      - name: Verify Flutter installation
+        if: steps.check-renamed.outputs.renamed == 'false'
+        run: fvm flutter --version
+
+      - name: Install Flutter Rename Package
+        if: steps.check-renamed.outputs.renamed == 'false'
+        run: fvm flutter pub global activate rename
+
+      - name: Check available platforms
+        if: steps.check-renamed.outputs.renamed == 'false'
+        id: check-platforms
+        run: |
+          if [ -d "ios" ]; then
+            echo "ios_enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "ios_enabled=false" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -d "android" ]; then
+            echo "android_enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "android_enabled=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Rename Remote Mouse App
+        if: steps.check-renamed.outputs.renamed == 'false'
+        env:
+          APP_NAME: ${{ steps.get-params.outputs.app_name }}
+          PACKAGE_NAME: ${{ steps.get-params.outputs.package_name }}
+        run: |
+          # Use make if available, otherwise use direct Flutter commands
+          if command -v make >/dev/null 2>&1; then
+            make change-app-name
+          else
+            echo "Make not available, using direct Flutter commands..."
+            fvm flutter pub global run rename setAppName --targets android --value "$APP_NAME"
+            fvm flutter pub global run rename setBundleId --targets android --value "$PACKAGE_NAME"
+          fi
+
+      - name: Update pubspec.yaml name
+        if: steps.check-renamed.outputs.renamed == 'false'
+        run: |
+          # Convert app name to snake_case for pubspec name
+          SNAKE_CASE_NAME=$(echo "${{ steps.get-params.outputs.app_name }}" | tr '[:upper:]' '[:lower:]' | tr ' ' '_' | tr '-' '_')
+          sed -i "s/^name: .*/name: $SNAKE_CASE_NAME/" pubspec.yaml
+          echo "Updated pubspec.yaml name to: $SNAKE_CASE_NAME"
+
+      - name: Commit and push changes
+        if: steps.check-renamed.outputs.renamed == 'false'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          if [[ -n $(git status --porcelain) ]]; then
+            git add .
+            git commit -m "chore: rename Remote Mouse app to '${{ steps.get-params.outputs.app_name }}' with package '${{ steps.get-params.outputs.package_name }}'"
+            git push
+          else
+            echo "No changes to commit"
+          fi
+
+      - name: Remove this workflow after successful rename
+        if: steps.check-renamed.outputs.renamed == 'false'
+        run: |
+          git rm .github/workflows/rename-remote-mouse-app.yml || true
+          git commit -m "chore: remove rename workflow after completion" || true
+          git push || true
+
+      - name: Skip - App already renamed
+        if: steps.check-renamed.outputs.renamed == 'true'
+        run: |
+          echo "Remote Mouse app has already been renamed. Skipping rename process."
+          echo "If you need to rename again, use workflow_dispatch with manual inputs."

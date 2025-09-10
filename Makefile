@@ -254,6 +254,20 @@ setup-fvm: install-fvm ## Setup FVM and install configured Flutter version
 		exit 1; \
 	fi
 
+# App renaming (for boilerplate setup)
+.PHONY: change-app-name
+change-app-name: ## Change app name and package ID (requires APP_NAME and PACKAGE_NAME env vars)
+	@if [ -z "$(APP_NAME)" ] || [ -z "$(PACKAGE_NAME)" ]; then \
+		echo "$(RED)❌ APP_NAME and PACKAGE_NAME environment variables are required$(NC)"; \
+		echo "$(YELLOW)Usage: APP_NAME='My App' PACKAGE_NAME='com.example.myapp' make change-app-name$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔧 Renaming app to '$(APP_NAME)' with package '$(PACKAGE_NAME)'...$(NC)"
+	@$(call flutter_cmd) pub global activate rename
+	@$(call flutter_cmd) pub global run rename setAppName --targets ios,android --value "$(APP_NAME)"
+	@$(call flutter_cmd) pub global run rename setBundleId --targets ios,android --value "$(PACKAGE_NAME)"
+	@echo "$(GREEN)✅ App renamed successfully$(NC)"
+
 .PHONY: install-deps-arch
 install-deps-arch: ## Install Arch Linux system dependencies
 	@echo "$(BLUE)📦 Installing Arch Linux system dependencies...$(NC)"

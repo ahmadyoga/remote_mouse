@@ -80,6 +80,13 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
       case 'escape':
         provider.pressEscape();
         break;
+      case 'up':
+      case 'down':
+      case 'left':
+      case 'right':
+        // Arrow keys should be sent as keyboard events, not scroll events
+        provider.pressKey(key);
+        break;
       default:
         provider.pressKey(key);
     }
