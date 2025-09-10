@@ -25,16 +25,25 @@ class _DesktopScreenState extends State<DesktopScreen> {
 
   Future<void> _initializeDesktop() async {
     try {
-      // Initialize provider
+      // Initialize provider only - don't auto-start server
       final provider = Provider.of<RemoteMouseProvider>(context, listen: false);
       await provider.initialize(mode: app_state.AppMode.desktop);
-      await provider.startServer();
-
+      
       setState(() {
         _isInitialized = true;
       });
+      
+      // Optionally auto-start server after a brief delay to ensure UI is ready
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          provider.startServer();
+        }
+      });
     } catch (e) {
       print('Desktop initialization error: $e');
+      setState(() {
+        _isInitialized = true; // Show UI even if there's an error
+      });
     }
   }
 
@@ -104,12 +113,12 @@ class _DesktopScreenState extends State<DesktopScreen> {
                                     style:
                                         Theme.of(context).textTheme.titleLarge,
                                   ),
-                                  // Text(
-                                  //   provider.isServerRunning
-                                  //       ? 'Running on port ${provider.serverPort}'
-                                  //       : 'Stopped',
-                                  //   style: Theme.of(context).textTheme.bodyMedium,
-                                  // ),
+                                  Text(
+                                    provider.isServerRunning
+                                        ? 'Running on port ${provider.serverPort}'
+                                        : 'Stopped',
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                  ),
                                 ],
                               ),
                             ],

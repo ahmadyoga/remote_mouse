@@ -35,6 +35,9 @@ class NetworkService {
 
   Future<void> startServer({required int port}) async {
     try {
+      // Ensure any existing server is properly closed first
+      await stopServer();
+      
       _eventController ??= StreamController<MouseEvent>.broadcast();
       _connectionController ??= StreamController<ConnectionState>.broadcast();
 
@@ -50,6 +53,7 @@ class NetworkService {
     } catch (e) {
       print('Server start error: $e');
       _updateConnectionState(ConnectionState.error);
+      rethrow; // Re-throw to allow caller to handle the error
     }
   }
 
@@ -209,9 +213,30 @@ class NetworkService {
   }
 
   Future<void> stopServer() async {
-    await _serverSocket?.close();
-    _serverSocket = null;
-    _updateConnectionState(ConnectionState.disconnected);
+    try {
+      _stopHeartbeat();
+      
+      // Close client connection if exists
+      if (_clientSocket != null) {
+        await _clientSocket!.close();
+        _clientSocket = null;
+      }
+      
+      // Close server socket if exists
+      if (_serverSocket != null) {
+        await _serverSocket!.close();
+        _serverSocket = null;
+      }
+      
+      _updateConnectionState(ConnectionState.disconnected);
+      print('Server stopped successfully');
+    } catch (e) {
+      print('Error stopping server: $e');
+      // Even if there's an error, ensure cleanup
+      _serverSocket = null;
+      _clientSocket = null;
+      _updateConnectionState(ConnectionState.disconnected);
+    }
   }
 
   Future<void> disconnect() async {

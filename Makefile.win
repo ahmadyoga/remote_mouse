@@ -1,0 +1,144 @@
+# Remote Mouse Application Makefile for Windows (nmake)
+# Use with: nmake -f Makefile.win <target>
+
+FLUTTER = flutter
+BUILD_DIR = build_output
+APP_NAME = remote_mouse
+VERSION = 1.0.0
+
+# Default target
+all: help
+
+help:
+	@echo Remote Mouse Application - Windows Makefile
+	@echo ==========================================
+	@echo.
+	@echo Available targets:
+	@echo   deps          - Install Flutter dependencies
+	@echo   generate      - Generate code
+	@echo   clean         - Clean build artifacts
+	@echo   analyze       - Run Flutter analyze
+	@echo   test          - Run Flutter tests
+	@echo   format        - Format Dart code
+	@echo   run           - Run Windows desktop app
+	@echo   run-android   - Run Android version
+	@echo   build-android - Build Android APK
+	@echo   build-windows - Build Windows desktop app
+	@echo   build-web     - Build web version
+	@echo   build-all     - Build for all platforms
+	@echo   package       - Create Windows zip package
+	@echo   release       - Full release build
+	@echo.
+
+check-flutter:
+	@$(FLUTTER) --version >nul 2>&1 || (echo Flutter is not installed or not in PATH && exit /b 1)
+	@echo Flutter found
+
+check-project:
+	@if not exist pubspec.yaml (echo This must be run from the project root directory && exit /b 1)
+	@echo Project root confirmed
+
+deps: check-flutter check-project
+	@echo Installing Flutter dependencies...
+	@$(FLUTTER) pub get
+
+generate: deps
+	@echo Generating code...
+	@findstr /C:"build_runner" pubspec.yaml >nul 2>&1 && (
+		$(FLUTTER) pub run build_runner build --delete-conflicting-outputs
+	) || (
+		echo No build_runner found, skipping code generation
+	)
+
+clean:
+	@echo Cleaning build artifacts...
+	@$(FLUTTER) clean
+	@if exist $(BUILD_DIR) rmdir /s /q $(BUILD_DIR)
+	@echo Clean complete
+
+analyze: deps
+	@echo Analyzing code...
+	@$(FLUTTER) analyze --fatal-infos
+
+test: deps
+	@echo Running tests...
+	@$(FLUTTER) test
+
+format:
+	@echo Formatting code...
+	@$(FLUTTER) format .
+
+check: analyze test
+	@echo All checks passed
+
+run: generate
+	@echo Starting Windows desktop application...
+	@$(FLUTTER) run -d windows --debug
+
+run-android: generate
+	@echo Running Android version...
+	@$(FLUTTER) run -d android --debug
+
+build-android: generate
+	@echo Building Android APK...
+	@if not exist $(BUILD_DIR)\android mkdir $(BUILD_DIR)\android
+	@$(FLUTTER) build apk --release --split-per-abi
+	@copy build\app\outputs\flutter-apk\*.apk $(BUILD_DIR)\android\
+	@echo Android APK built: $(BUILD_DIR)\android\
+
+build-android-bundle: generate
+	@echo Building Android App Bundle...
+	@if not exist $(BUILD_DIR)\android mkdir $(BUILD_DIR)\android
+	@$(FLUTTER) build appbundle --release
+	@copy build\app\outputs\bundle\release\*.aab $(BUILD_DIR)\android\
+	@echo Android AAB built: $(BUILD_DIR)\android\
+
+build-windows: generate
+	@echo Building Windows desktop app...
+	@if not exist $(BUILD_DIR)\windows mkdir $(BUILD_DIR)\windows
+	@$(FLUTTER) build windows --release
+	@xcopy build\windows\x64\runner\Release\*.* $(BUILD_DIR)\windows\ /e /i /y
+	@echo Windows build: $(BUILD_DIR)\windows\
+
+build-web: generate
+	@echo Building web app...
+	@if not exist $(BUILD_DIR)\web mkdir $(BUILD_DIR)\web
+	@$(FLUTTER) build web --release
+	@xcopy build\web\*.* $(BUILD_DIR)\web\ /e /i /y
+	@echo Web build: $(BUILD_DIR)\web\
+
+build-all: build-android build-android-bundle build-windows build-web
+	@echo All platform builds complete!
+
+package: build-windows
+	@echo Packaging Windows build...
+	@cd $(BUILD_DIR) && powershell -Command "Compress-Archive -Path windows -DestinationPath $(APP_NAME)-windows-$(VERSION).zip"
+	@echo Windows package: $(BUILD_DIR)\$(APP_NAME)-windows-$(VERSION).zip
+
+dev: clean deps generate check
+	@echo Development environment ready!
+
+test-build: generate analyze test build-android
+	@echo Test build complete!
+
+release: clean generate check build-all package
+	@echo Release builds complete!
+	@echo Build artifacts in: $(BUILD_DIR)\
+
+info:
+	@echo Remote Mouse Build Info
+	@echo ======================
+	@echo Platform: Windows
+	@echo Build Directory: $(BUILD_DIR)
+	@echo App Name: $(APP_NAME)
+	@echo Version: $(VERSION)
+	@echo.
+	@$(FLUTTER) --version
+
+devices:
+	@$(FLUTTER) devices
+
+doctor:
+	@$(FLUTTER) doctor
+
+.PHONY: all help check-flutter check-project deps generate clean analyze test format check run run-android build-android build-android-bundle build-windows build-web build-all package dev test-build release info devices doctor

@@ -50,6 +50,34 @@ Simple JSON-based communication:
    cd remote_mouse
    ```
 
+2. **Using Makefile (Recommended)**
+   ```bash
+   # Show available commands
+   make help
+   
+   # Quick development setup
+   make dev
+   
+   # Run the app (auto-detects platform)
+   make run
+   
+   # Build for specific platforms
+   make build-android        # Android APK
+   make build-android-bundle # Android AAB for Play Store
+   make build-linux          # Linux desktop
+   make build-windows        # Windows desktop
+   make build-web           # Web version
+   
+   # Build everything
+   make build-all
+   
+   # Quick test
+   make test-build
+   
+   # Full release workflow
+   make release
+   ```
+
 2. **Install dependencies**
    ```bash
    flutter pub get
@@ -216,6 +244,145 @@ The app automatically detects the platform and shows the appropriate interface:
 ## License
 
 This project is open source. See the LICENSE file for details.
+
+## Building and Releasing
+
+### Manual Build (Alternative)
+
+**Android APK:**
+```bash
+flutter build apk --release --split-per-abi
+```
+
+**Android App Bundle (for Google Play):**
+```bash
+flutter build appbundle --release
+```
+
+**Windows Executable:**
+```bash
+flutter build windows --release
+```
+
+**Linux Binary:**
+```bash
+flutter build linux --release
+```
+
+### Makefile Commands
+
+The Makefile provides a comprehensive build system:
+
+**Quick Start:**
+```bash
+make help          # Show all available commands
+make dev           # Full development setup
+make run           # Run app (auto-detects platform)
+make test-build    # Quick test build
+```
+
+**Development:**
+```bash
+make deps          # Install dependencies
+make generate      # Generate code
+make analyze       # Analyze code
+make test          # Run tests
+make format        # Format code
+make clean         # Clean build artifacts
+```
+
+**Building:**
+```bash
+make build-android         # Android APK
+make build-android-bundle  # Android AAB
+make build-linux          # Linux desktop
+make build-windows        # Windows desktop  
+make build-web            # Web version
+make build-all            # All platforms
+```
+
+**Packaging:**
+```bash
+make package-linux    # Create .tar.gz
+make package-windows  # Create .zip
+make release          # Full release workflow
+```
+
+**System Setup:**
+```bash
+make install-deps-linux  # Ubuntu/Debian dependencies
+make install-deps-arch   # Arch Linux dependencies
+make install-fvm         # Install Flutter Version Management
+make setup-fvm           # Setup FVM with project Flutter version
+```
+
+**FVM Integration:**
+The Makefile automatically detects and uses FVM when:
+- FVM is installed (`fvm` command available)
+- `.fvmrc` file exists in project root
+- Current project Flutter version: **3.32.5** (from `.fvmrc`)
+
+If FVM is not available, it falls back to system Flutter installation.
+
+### Automated Builds (GitHub Actions)
+
+This project includes GitHub Actions workflows for automated building:
+
+1. **With FVM** (`android-release.yml`):
+   - Uses Flutter Version Management for consistent builds
+   - Triggered on version tags (e.g., `v1.0.0`)
+   - Requires `.fvm/fvm_config.json` configuration
+
+2. **Without FVM** (`android-release-no-fvm.yml`):
+   - Uses standard Flutter setup
+   - Triggered on tags ending with `-no-fvm` (e.g., `v1.0.0-no-fvm`)
+   - Can also be manually triggered with custom Flutter version
+
+### Creating a Release
+
+1. **Tag a new version:**
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+2. **For FVM builds:** Ensure `.fvm/fvm_config.json` exists with your Flutter version
+
+3. **For non-FVM builds:** Use tags like `v1.0.0-no-fvm`
+
+4. **Manual trigger:** Go to GitHub Actions → Select workflow → Run workflow
+
+The GitHub Action will:
+- Build Android APKs for different architectures
+- Build Android App Bundle (AAB)
+- Run tests and code analysis
+- Create a GitHub release with artifacts
+- Upload build artifacts
+
+## Troubleshooting
+
+### Server Won't Start on First Run
+**Issue:** Server fails to start initially but works on restart.
+
+**Solution:** Updated in recent versions - the server initialization has been improved to avoid race conditions. If you still experience issues:
+1. Stop the server manually
+2. Wait a few seconds
+3. Start the server again
+4. Check that no other application is using the same port
+
+### Port Already in Use
+**Error:** `Address already in use`
+
+**Solutions:**
+1. Change the server port in settings
+2. Close any applications using the port
+3. On Linux: `sudo netstat -tlnp | grep :1978` to find processes using the port
+
+### Connection Issues
+1. Ensure both devices are on the same network
+2. Check firewall settings on desktop
+3. Try manual IP connection if auto-discovery fails
+4. Verify the port number matches on both devices
 
 ## Future Enhancements
 

@@ -115,9 +115,8 @@ class RemoteMouseProvider with ChangeNotifier {
         notifyListeners();
       });
 
-      // Start the TCP server
-      _startDesktopServer();
-
+      // Don't auto-start the server here - let it be started manually
+      // This prevents race conditions and duplicate initialization
       print('Desktop initialization completed');
     } catch (e) {
       print('Failed to initialize desktop mode: $e');
@@ -267,6 +266,8 @@ class RemoteMouseProvider with ChangeNotifier {
   Future<void> startServer() async {
     if (_appMode != AppMode.mobile) {
       try {
+        _errorMessage = null; // Clear any previous errors
+        
         await _networkService.startServer(port: _serverPort);
         _isServerRunning = true;
 
@@ -274,9 +275,12 @@ class RemoteMouseProvider with ChangeNotifier {
         await _discoveryService.announceService(
             port: _serverPort, deviceName: 'Desktop Remote Mouse');
 
+        print('Server started successfully on port $_serverPort');
         notifyListeners();
       } catch (e) {
+        print('Server start failed: $e');
         _errorMessage = 'Server start failed: $e';
+        _isServerRunning = false;
         notifyListeners();
       }
     }
@@ -284,12 +288,18 @@ class RemoteMouseProvider with ChangeNotifier {
 
   Future<void> stopServer() async {
     try {
+      _errorMessage = null; // Clear any previous errors
+      
       await _networkService.stopServer();
       await _discoveryService.stopDiscovery();
       _isServerRunning = false;
+      
+      print('Server stopped successfully');
       notifyListeners();
     } catch (e) {
+      print('Server stop failed: $e');
       _errorMessage = 'Server stop failed: $e';
+      _isServerRunning = false; // Ensure state is consistent
       notifyListeners();
     }
   }

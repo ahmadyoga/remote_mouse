@@ -1,0 +1,97 @@
+name: Build Android Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0, v1.2.3, etc.
+  workflow_dispatch:  # Allows manual triggering
+
+env:
+  FLUTTER_VERSION: 3.32.5  # Specify the Flutter version you want to use
+  JAVA_VERSION: 17
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: ${{ env.JAVA_VERSION }}
+      
+      - name: Setup FVM
+        uses: kuhnroyal/flutter-fvm-config-action@v2
+        with:
+          setup: true
+      
+      # Alternative: If you don't have fvm config, use regular Flutter setup
+      # - name: Setup Flutter
+      #   uses: subosito/flutter-action@v2
+      #   with:
+      #     flutter-version: ${{ env.FLUTTER_VERSION }}
+      #     channel: stable
+      #     cache: true
+      
+      - name: Install Flutter dependencies
+        run: flutter pub get
+      
+      - name: Generate code (if needed)
+        run: |
+          if grep -q "build_runner" pubspec.yaml; then
+            flutter pub run build_runner build --delete-conflicting-outputs
+          fi
+      
+      - name: Analyze code
+        run: flutter analyze
+      
+      - name: Run tests
+        run: flutter test
+      
+      - name: Build Android APK
+        run: flutter build apk --release --split-per-abi
+      
+      - name: Build Android App Bundle
+        run: flutter build appbundle --release
+      
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-apk-${{ github.ref_name }}
+          path: build/app/outputs/flutter-apk/*.apk
+      
+      - name: Upload App Bundle artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-aab-${{ github.ref_name }}
+          path: build/app/outputs/bundle/release/*.aab
+      
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "build/app/outputs/flutter-apk/*.apk,build/app/outputs/bundle/release/*.aab"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## Remote Mouse Release ${{ github.ref_name }}
+            
+            ### Download Options:
+            - **APK Files**: For direct installation on Android devices
+            - **App Bundle (AAB)**: For Google Play Store distribution
+            
+            ### What's New:
+            - Bug fixes and improvements
+            - Enhanced server stability
+            
+            ### Installation:
+            1. Download the appropriate APK for your device architecture
+            2. Enable "Install from unknown sources" in your Android settings
+            3. Install the APK file
+          draft: false
+          prerelease: false
