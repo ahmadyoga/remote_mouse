@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'dart:ffi';
+import 'dart:async';
 import 'package:ffi/ffi.dart';
 
 // Win32 POINT structure
 final class POINT extends Struct {
   @Int32()
   external int x;
-  
+
   @Int32()
   external int y;
 }
@@ -42,11 +43,9 @@ class WindowsMouseController implements MouseController {
   WindowsMouseController() {
     try {
       _user32 = DynamicLibrary.open('user32.dll');
-      _setCursorPos = _user32.lookupFunction<
-          Int32 Function(Int32, Int32),
+      _setCursorPos = _user32.lookupFunction<Int32 Function(Int32, Int32),
           int Function(int, int)>('SetCursorPos');
-      _getCursorPos = _user32.lookupFunction<
-          Int32 Function(Pointer<POINT>),
+      _getCursorPos = _user32.lookupFunction<Int32 Function(Pointer<POINT>),
           int Function(Pointer<POINT>)>('GetCursorPos');
       _mouseEvent = _user32.lookupFunction<
           Void Function(Uint32, Uint32, Uint32, Uint32, Uint32),
@@ -90,7 +89,7 @@ class WindowsMouseController implements MouseController {
     try {
       final deltaX = dx.round();
       final deltaY = dy.round();
-      
+
       final script = '''
 Add-Type @"
 using System;
@@ -119,7 +118,8 @@ public class MouseHelper {
 [MouseHelper]::MoveMouse($deltaX, $deltaY)
       ''';
 
-      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
+      Process.runSync(
+          'powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
     } catch (e) {
       print('Windows mouse move error: $e');
     }
@@ -133,9 +133,13 @@ public class MouseHelper {
     }
 
     try {
-      final leftDown = button.toLowerCase() == 'left' ? 0x0002 : (button.toLowerCase() == 'right' ? 0x0008 : 0x0020);
-      final leftUp = button.toLowerCase() == 'left' ? 0x0004 : (button.toLowerCase() == 'right' ? 0x0010 : 0x0040);
-      
+      final leftDown = button.toLowerCase() == 'left'
+          ? 0x0002
+          : (button.toLowerCase() == 'right' ? 0x0008 : 0x0020);
+      final leftUp = button.toLowerCase() == 'left'
+          ? 0x0004
+          : (button.toLowerCase() == 'right' ? 0x0010 : 0x0040);
+
       _mouseEvent(leftDown, 0, 0, 0, 0);
       _mouseEvent(leftUp, 0, 0, 0, 0);
     } catch (e) {
@@ -147,9 +151,13 @@ public class MouseHelper {
 
   void _clickPowerShell(String button) {
     try {
-      final leftDown = button.toLowerCase() == 'left' ? 0x0002 : (button.toLowerCase() == 'right' ? 0x0008 : 0x0020);
-      final leftUp = button.toLowerCase() == 'left' ? 0x0004 : (button.toLowerCase() == 'right' ? 0x0010 : 0x0040);
-      
+      final leftDown = button.toLowerCase() == 'left'
+          ? 0x0002
+          : (button.toLowerCase() == 'right' ? 0x0008 : 0x0020);
+      final leftUp = button.toLowerCase() == 'left'
+          ? 0x0004
+          : (button.toLowerCase() == 'right' ? 0x0010 : 0x0040);
+
       final script = '''
 Add-Type @"
 using System;
@@ -168,7 +176,8 @@ public class MouseClicker {
 [MouseClicker]::Click($leftDown, $leftUp)
       ''';
 
-      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
+      Process.runSync(
+          'powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
     } catch (e) {
       print('Windows mouse click error: $e');
     }
@@ -182,7 +191,8 @@ public class MouseClicker {
     }
 
     try {
-      final delta = direction == 'up' ? (120 * amount).round() : (-120 * amount).round();
+      final delta =
+          direction == 'up' ? (120 * amount).round() : (-120 * amount).round();
       _mouseEvent(0x0800, 0, 0, delta, 0); // MOUSEEVENTF_WHEEL = 0x0800
     } catch (e) {
       print('FFI mouse scroll error, falling back to PowerShell: $e');
@@ -193,8 +203,9 @@ public class MouseClicker {
 
   void _scrollPowerShell(String direction, {double amount = 1.0}) {
     try {
-      final delta = direction == 'up' ? (120 * amount).round() : (-120 * amount).round();
-      
+      final delta =
+          direction == 'up' ? (120 * amount).round() : (-120 * amount).round();
+
       final script = '''
 Add-Type @"
 using System;
@@ -212,7 +223,8 @@ public class MouseScroller {
 [MouseScroller]::Scroll($delta)
       ''';
 
-      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
+      Process.runSync(
+          'powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
     } catch (e) {
       print('Windows mouse scroll error: $e');
     }
@@ -338,7 +350,8 @@ public class KeyboardHelper {
 [KeyboardHelper]::TypeText("$escapedText")
       ''';
 
-      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
+      Process.runSync(
+          'powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
     } catch (e) {
       print('Windows text typing error: $e');
     }
@@ -363,7 +376,7 @@ public class KeyboardHelper {
     try {
       // Map common keys to SendKeys format
       String sendKeysFormat = _mapKeyToSendKeys(key);
-      
+
       final script = '''
 Add-Type @"
 using System;
@@ -379,7 +392,8 @@ public class KeyboardHelper {
 [KeyboardHelper]::PressKey("$sendKeysFormat")
       ''';
 
-      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
+      Process.runSync(
+          'powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
     } catch (e) {
       print('Windows key press error: $e');
     }
@@ -504,7 +518,8 @@ public class KeyboardHelper {
         [KeyboardOperations]::SimulateCtrlMouseWheel(\$$isZoomIn)
       ''';
 
-      Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
+      Process.runSync(
+          'powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
     }
   }
 
@@ -560,7 +575,8 @@ public class KeyboardHelper {
       [KeyboardOperations]::SimulateSwipe("$direction")
     ''';
 
-    Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
+    Process.runSync(
+        'powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
   }
 
   void _performWindowsFourFingerSwipe(String direction) {
@@ -618,7 +634,8 @@ public class KeyboardHelper {
       [KeyboardOperations]::SimulateFourFingerSwipe("$direction")
     ''';
 
-    Process.runSync('powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
+    Process.runSync(
+        'powershell', ['-ExecutionPolicy', 'Bypass', '-Command', script]);
   }
 
   @override
@@ -630,6 +647,13 @@ public class KeyboardHelper {
 // Linux implementation using command line tools
 class LinuxMouseController implements MouseController {
   bool _hasXdotool = false;
+
+  // Optimization for mouse movement batching
+  Timer? _movementTimer;
+  double _pendingDx = 0.0;
+  double _pendingDy = 0.0;
+  static const Duration _batchDelay = Duration(milliseconds: 8); // ~120fps max
+  static const double _movementThreshold = 0.1; // Ignore very small movements
 
   LinuxMouseController() {
     _checkDependencies();
@@ -653,12 +677,60 @@ class LinuxMouseController implements MouseController {
       return;
     }
 
+    // Filter out very small movements to reduce noise
+    if (dx.abs() < _movementThreshold && dy.abs() < _movementThreshold) {
+      return;
+    }
+
+    // Batch mouse movements for better performance
+    _pendingDx += dx;
+    _pendingDy += dy;
+
+    // Cancel existing timer if any
+    _movementTimer?.cancel();
+
+    // Set a new timer to execute the batched movement
+    _movementTimer = Timer(_batchDelay, () {
+      _executeBatchedMovement();
+    });
+  }
+
+  void _executeBatchedMovement() {
+    if (_pendingDx == 0.0 && _pendingDy == 0.0) {
+      return;
+    }
+
     try {
-      Process.runSync('xdotool',
-          ['mousemove_relative', '--', dx.toString(), dy.toString()]);
+      // Use Process.run (async) instead of Process.runSync for non-blocking execution
+      Process.run('xdotool', [
+        'mousemove_relative',
+        '--',
+        _pendingDx.toString(),
+        _pendingDy.toString()
+      ]).then((_) {
+        // Movement completed, no need to handle the result
+      }).catchError((error) {
+        print('Linux mouse move error: $error');
+      });
+
+      // Reset pending movements
+      _pendingDx = 0.0;
+      _pendingDy = 0.0;
     } catch (e) {
       print('Linux mouse move error: $e');
+      // Reset pending movements on error
+      _pendingDx = 0.0;
+      _pendingDy = 0.0;
     }
+  }
+
+  // Helper method for async xdotool execution
+  void _runXdotoolAsync(List<String> args) {
+    Process.run('xdotool', args).then((_) {
+      // Command completed successfully
+    }).catchError((error) {
+      print('Linux xdotool error: $error');
+    });
   }
 
   @override
@@ -671,7 +743,12 @@ class LinuxMouseController implements MouseController {
 
     try {
       final buttonNum = _getButtonNumber(button);
-      Process.runSync('xdotool', ['click', buttonNum]);
+      // Use async Process.run for non-blocking execution
+      Process.run('xdotool', ['click', buttonNum]).then((_) {
+        // Click completed successfully
+      }).catchError((error) {
+        print('Linux mouse click error: $error');
+      });
     } catch (e) {
       print('Linux mouse click error: $e');
     }
@@ -690,13 +767,22 @@ class LinuxMouseController implements MouseController {
       final steps = (amount / 2).round().clamp(1, 5);
       final buttonNum = direction == 'up' ? '4' : '5';
 
-      // Execute all scroll steps in a single command for better performance
+      // Execute scroll asynchronously for better performance
       if (steps == 1) {
-        Process.runSync('xdotool', ['click', buttonNum]);
+        Process.run('xdotool', ['click', buttonNum]).then((_) {
+          // Scroll completed successfully
+        }).catchError((error) {
+          print('Linux mouse scroll error: $error');
+        });
       } else {
         // Use xdotool's repeat feature which is much faster than looping
-        Process.runSync(
-            'xdotool', ['click', '--repeat', steps.toString(), buttonNum]);
+        Process.run(
+                'xdotool', ['click', '--repeat', steps.toString(), buttonNum])
+            .then((_) {
+          // Scroll completed successfully
+        }).catchError((error) {
+          print('Linux mouse scroll error: $error');
+        });
       }
     } catch (e) {
       print('Linux mouse scroll error: $e');
@@ -795,7 +881,7 @@ class LinuxMouseController implements MouseController {
 
   void _typeText(String text) {
     try {
-      Process.runSync('xdotool', ['type', text]);
+      _runXdotoolAsync(['type', text]);
     } catch (e) {
       print('Linux text typing error: $e');
     }
@@ -803,7 +889,7 @@ class LinuxMouseController implements MouseController {
 
   void _pressKey(String key) {
     try {
-      Process.runSync('xdotool', ['key', key]);
+      _runXdotoolAsync(['key', key]);
     } catch (e) {
       print('Linux key press error: $e');
     }
@@ -811,7 +897,7 @@ class LinuxMouseController implements MouseController {
 
   void _performDoubleClick() {
     // Perform two quick left clicks
-    Process.runSync('xdotool', ['click', '--repeat', '2', '1']);
+    _runXdotoolAsync(['click', '--repeat', '2', '1']);
   }
 
   void _handleTwoFingerScroll(Map<String, dynamic>? data) {
@@ -901,6 +987,13 @@ class LinuxMouseController implements MouseController {
 
   @override
   void dispose() {
-    // Clean up resources if needed
+    // Cancel any pending movement timer
+    _movementTimer?.cancel();
+    _movementTimer = null;
+
+    // Execute any remaining batched movement before cleanup
+    if (_pendingDx != 0.0 || _pendingDy != 0.0) {
+      _executeBatchedMovement();
+    }
   }
 }

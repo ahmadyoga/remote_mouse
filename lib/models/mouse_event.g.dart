@@ -13,6 +13,9 @@ MouseEvent _$MouseEventFromJson(Map<String, dynamic> json) => MouseEvent(
       scroll: json['scroll'] as String?,
       tap: json['tap'] as String?,
       gesture: json['gesture'] as String?,
+      keyboard: json['keyboard'] as String?,
+      text: json['text'] as String?,
+      key: json['key'] as String?,
       data: json['data'] as Map<String, dynamic>?,
     );
 
@@ -24,5 +27,8 @@ Map<String, dynamic> _$MouseEventToJson(MouseEvent instance) =>
       'scroll': instance.scroll,
       'tap': instance.tap,
       'gesture': instance.gesture,
+      'keyboard': instance.keyboard,
+      'text': instance.text,
+      'key': instance.key,
       'data': instance.data,
     };
