@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/remote_mouse_provider.dart';
 import '../models/app_state.dart';
+import '../theme/app_theme.dart';
 import 'qr_scanner_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -12,42 +13,43 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
       ),
-      backgroundColor: Colors.black,
       body: Consumer<RemoteMouseProvider>(
         builder: (context, provider, child) {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // QR Code Scanner (only show if not connected)
-              if (provider.connectedDevice == null)
-                _buildSettingCard(
+              // ── QR Code Scanner ──
+              if (provider.connectedDevice == null) ...[
+                _SettingCard(
+                  icon: Icons.qr_code_scanner,
                   title: 'Quick Connect',
                   subtitle: 'Scan QR code from desktop to connect instantly',
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const QRScannerScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('Scan QR Code'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.withOpacity(0.2),
-                      foregroundColor: Colors.blue,
-                      minimumSize: const Size(double.infinity, 48),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const QRScannerScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.qr_code_scanner, size: 18),
+                      label: const Text('Scan QR Code'),
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
+              ],
 
-              if (provider.connectedDevice == null) const SizedBox(height: 16),
+              // ── Section: Controls ──
+              const _SectionHeader(title: 'Controls'),
+              const SizedBox(height: 8),
 
               // Mouse Sensitivity
-              _buildSettingCard(
+              _SettingCard(
+                icon: Icons.mouse_outlined,
                 title: 'Mouse Sensitivity',
                 subtitle: 'Adjust cursor movement sensitivity',
                 child: Column(
@@ -63,18 +65,18 @@ class SettingsScreen extends StatelessWidget {
                         provider.updateMouseSensitivity(value);
                       },
                     ),
-                    Text(
-                      'Current: ${provider.appSettings.mouseSensitivity.toStringAsFixed(1)}',
-                      style: const TextStyle(color: Colors.white70),
+                    _ValueLabel(
+                      value: provider.appSettings.mouseSensitivity
+                          .toStringAsFixed(1),
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Scroll Sensitivity
-              _buildSettingCard(
+              _SettingCard(
+                icon: Icons.swap_vert,
                 title: 'Scroll Sensitivity',
                 subtitle: 'Adjust two-finger scroll speed',
                 child: Column(
@@ -90,18 +92,18 @@ class SettingsScreen extends StatelessWidget {
                         provider.updateScrollSensitivity(value);
                       },
                     ),
-                    Text(
-                      'Current: ${provider.appSettings.scrollSensitivity.toStringAsFixed(1)}',
-                      style: const TextStyle(color: Colors.white70),
+                    _ValueLabel(
+                      value: provider.appSettings.scrollSensitivity
+                          .toStringAsFixed(1),
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Reverse Scroll
-              _buildSettingCard(
+              _SettingCard(
+                icon: Icons.sync_alt,
                 title: 'Reverse Scroll',
                 subtitle: 'Enable natural/reverse scrolling like trackpads',
                 child: SwitchListTile(
@@ -113,23 +115,26 @@ class SettingsScreen extends StatelessWidget {
                     provider.appSettings.reverseScroll
                         ? 'Natural'
                         : 'Traditional',
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 15,
+                    ),
                   ),
                   subtitle: Text(
                     provider.appSettings.reverseScroll
                         ? 'Scroll content follows finger movement'
                         : 'Scroll content moves opposite to finger',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    style: const TextStyle(
+                        color: AppColors.textTertiary, fontSize: 12),
                   ),
-                  activeColor: Colors.blue,
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
-
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Double Click Threshold
-              _buildSettingCard(
+              _SettingCard(
+                icon: Icons.ads_click,
                 title: 'Double Click Speed',
                 subtitle: 'Time window for double-tap detection',
                 child: Column(
@@ -145,121 +150,90 @@ class SettingsScreen extends StatelessWidget {
                         provider.updateDoubleClickThreshold(value);
                       },
                     ),
-                    Text(
-                      'Current: ${provider.appSettings.doubleClickThreshold.round()}ms',
-                      style: const TextStyle(color: Colors.white70),
+                    _ValueLabel(
+                      value:
+                          '${provider.appSettings.doubleClickThreshold.round()}ms',
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
-              // Reset to defaults
-              _buildSettingCard(
+              // ── Section: Danger Zone ──
+              const _SectionHeader(title: 'Danger Zone'),
+              const SizedBox(height: 8),
+
+              _SettingCard(
+                icon: Icons.restore,
                 title: 'Reset Settings',
                 subtitle: 'Restore default values',
-                child: ElevatedButton(
-                  onPressed: () {
-                    _showResetDialog(context, provider);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.withOpacity(0.2),
-                    foregroundColor: Colors.red,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showResetDialog(context, provider),
+                    icon: const Icon(Icons.restore, size: 18),
+                    label: const Text('Reset to Defaults'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: BorderSide(
+                          color: AppColors.error.withValues(alpha: 0.4)),
+                    ),
                   ),
-                  child: const Text('Reset to Defaults'),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // Connection Info
-              if (provider.connectedDevice != null)
-                _buildSettingCard(
+              // ── Connection Info ──
+              if (provider.connectedDevice != null) ...[
+                const _SectionHeader(title: 'Connection'),
+                const SizedBox(height: 8),
+                _SettingCard(
+                  icon: Icons.link,
                   title: 'Connection Info',
-                  subtitle: 'Current connection details',
+                  subtitle: 'Currently connected device',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.computer, color: Colors.white70),
-                          const SizedBox(width: 8),
-                          Text(
-                            provider.connectedDevice!.name,
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        ],
+                      _InfoRow(
+                        icon: Icons.computer,
+                        label: provider.connectedDevice!.name,
                       ),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.network_check,
-                              color: Colors.white70),
-                          const SizedBox(width: 8),
-                          Text(
+                      _InfoRow(
+                        icon: Icons.language,
+                        label:
                             '${provider.connectedDevice!.ip}:${provider.connectedDevice!.port}',
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                        ],
+                        mono: true,
                       ),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          provider.disconnect();
-                          Navigator.of(context).pop();
-                        },
-                        icon: const Icon(Icons.close),
-                        label: const Text('Disconnect'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange.withOpacity(0.2),
-                          foregroundColor: Colors.orange,
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            provider.disconnect();
+                            Navigator.of(context).pop();
+                          },
+                          icon: const Icon(Icons.close, size: 18),
+                          label: const Text('Disconnect'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.connecting,
+                            side: BorderSide(
+                                color: AppColors.connecting
+                                    .withValues(alpha: 0.4)),
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
+              ],
+
+              const SizedBox(height: 32),
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildSettingCard({
-    required String title,
-    required String subtitle,
-    required Widget child,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 16),
-          child,
-        ],
       ),
     );
   }
@@ -268,7 +242,13 @@ class SettingsScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reset Settings'),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber, color: AppColors.error, size: 22),
+            SizedBox(width: 10),
+            Text('Reset Settings'),
+          ],
+        ),
         content: const Text(
           'Are you sure you want to reset all settings to their default values?',
         ),
@@ -288,13 +268,163 @@ class SettingsScreen extends StatelessWidget {
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
             ),
             child: const Text('Reset'),
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Reusable Setting Card ──
+
+class _SettingCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  const _SettingCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: glassDecoration(opacity: 0.05),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: AppColors.primary, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: AppColors.textTertiary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+// ── Section Header ──
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, top: 4),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          color: AppColors.textTertiary,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Value Label ──
+
+class _ValueLabel extends StatelessWidget {
+  final String value;
+  const _ValueLabel({required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        value,
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+}
+
+// ── Info Row ──
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool mono;
+
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    this.mono = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: AppColors.textTertiary, size: 18),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+            fontFamily: mono ? 'monospace' : null,
+          ),
+        ),
+      ],
     );
   }
 }

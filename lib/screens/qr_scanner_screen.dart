@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../providers/remote_mouse_provider.dart';
 import '../models/device_info.dart';
+import '../theme/app_theme.dart';
 
 class QRScannerScreen extends StatefulWidget {
   const QRScannerScreen({super.key});
@@ -52,11 +53,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan QR Code'),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.flash_on),
+            tooltip: 'Toggle Flash',
             onPressed: () async {
               await controller?.toggleFlash();
             },
@@ -71,65 +71,103 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
               key: qrKey,
               onQRViewCreated: _onQRViewCreated,
               overlay: QrScannerOverlayShape(
-                borderColor: Colors.white,
-                borderRadius: 10,
+                borderColor: AppColors.primary,
+                borderRadius: 16,
                 borderLength: 30,
-                borderWidth: 10,
-                cutOutSize: MediaQuery.of(context).size.width * 0.8,
+                borderWidth: 4,
+                cutOutSize: MediaQuery.of(context).size.width * 0.75,
+                overlayColor: AppColors.background.withValues(alpha: 0.85),
               ),
             ),
           ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.black,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (_scannedData != null)
-                    Text(
-                      'Scanned: $_scannedData',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontFamily: 'monospace',
-                      ),
-                      textAlign: TextAlign.center,
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_scannedData != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.2)),
                     ),
-                  if (_isProcessing)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.qr_code,
+                            color: AppColors.primary, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _scannedData!,
+                            style: const TextStyle(
+                              color: AppColors.primaryLight,
+                              fontSize: 14,
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Connecting...',
-                            style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (_isProcessing)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 14),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            color: AppColors.primaryLight,
+                            strokeWidth: 2,
                           ),
-                        ],
-                      ),
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          'Connecting...',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                  if (!_isProcessing && _scannedData == null)
-                    const Text(
-                      'Point camera at QR code to scan',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
+                  ),
+                if (!_isProcessing && _scannedData == null)
+                  const Column(
+                    children: [
+                      Icon(Icons.qr_code_scanner_outlined,
+                          color: AppColors.textTertiary, size: 36),
+                      SizedBox(height: 10),
+                      Text(
+                        'Point camera at QR code',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                ],
-              ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Displayed on the desktop server screen',
+                        style: TextStyle(
+                          color: AppColors.textTertiary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
         ],
@@ -157,11 +195,9 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       _scannedData = qrData;
     });
 
-    // Pause camera while processing
     await controller?.pauseCamera();
 
     try {
-      // Parse the QR code data (expected format: "ip:port")
       final parts = qrData.split(':');
       if (parts.length != 2) {
         throw const FormatException(
@@ -172,13 +208,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       final portStr = parts[1].trim();
       final port = int.parse(portStr);
 
-      // Validate IP format (basic validation)
       final ipRegex = RegExp(r'^(\d{1,3}\.){3}\d{1,3}$');
       if (!ipRegex.hasMatch(ip)) {
         throw const FormatException('Invalid IP address format');
       }
 
-      // Validate each IP octet
       final octets = ip.split('.');
       for (final octet in octets) {
         final value = int.parse(octet);
@@ -188,12 +222,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         }
       }
 
-      // Validate port range
       if (port < 1 || port > 65535) {
         throw const FormatException('Invalid port number: must be 1-65535');
       }
 
-      // Create device info and attempt connection
       final device = DeviceInfo(
         name: 'QR Scanned Device ($ip)',
         ip: ip,
@@ -206,8 +238,8 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Successfully connected to $ip:$port'),
-            backgroundColor: Colors.green,
+            content: Text('Connected to $ip:$port'),
+            backgroundColor: AppColors.connected,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -228,7 +260,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -239,7 +271,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           _isProcessing = false;
         });
 
-        // Resume camera after a delay
         Future.delayed(const Duration(seconds: 2), () async {
           if (mounted) {
             setState(() {

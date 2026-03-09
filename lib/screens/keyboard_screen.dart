@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/remote_mouse_provider.dart';
 import '../models/app_state.dart' as app_state;
+import '../theme/app_theme.dart';
 
 class KeyboardScreen extends StatefulWidget {
   const KeyboardScreen({super.key});
@@ -20,8 +20,6 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
   void initState() {
     super.initState();
     _textController.addListener(_onTextChanged);
-    
-    // Auto-focus the text field when the screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -38,25 +36,21 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
   void _onTextChanged() {
     final provider = Provider.of<RemoteMouseProvider>(context, listen: false);
     final currentText = _textController.text;
-    
+
     if (currentText.length > _lastText.length) {
-      // Text was added
       final addedText = currentText.substring(_lastText.length);
       provider.typeText(addedText);
     } else if (currentText.length < _lastText.length) {
-      // Text was removed (backspace)
       final removedCount = _lastText.length - currentText.length;
       for (int i = 0; i < removedCount; i++) {
         provider.pressBackspace();
       }
     }
-    
     _lastText = currentText;
   }
 
   void _handleSpecialKey(String key) {
     final provider = Provider.of<RemoteMouseProvider>(context, listen: false);
-    
     switch (key) {
       case 'enter':
         provider.pressEnter();
@@ -68,7 +62,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
       case 'backspace':
         provider.pressBackspace();
         if (_textController.text.isNotEmpty) {
-          _textController.text = _textController.text.substring(0, _textController.text.length - 1);
+          _textController.text = _textController.text
+              .substring(0, _textController.text.length - 1);
           _textController.selection = TextSelection.fromPosition(
             TextPosition(offset: _textController.text.length),
           );
@@ -88,11 +83,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Remote Keyboard'),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -102,60 +94,33 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
         builder: (context, provider, child) {
           return Column(
             children: [
-              // Connection status
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                color: _getConnectionColor(provider.connectionState),
-                child: Row(
-                  children: [
-                    Icon(
-                      _getConnectionIcon(provider.connectionState),
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _getConnectionText(provider.connectionState),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (provider.connectedDevice != null) ...[
-                      const Spacer(),
-                      Text(
-                        '${provider.connectedDevice!.ip}:${provider.connectedDevice!.port}',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+              // ── Connection status banner ──
+              _ConnectionBanner(state: provider.connectionState, provider: provider),
 
-              // Text input area
+              // ── Text input area ──
               Expanded(
                 flex: 2,
                 child: Container(
                   margin: const EdgeInsets.all(16),
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.3)),
-                  ),
+                  decoration: glassDecoration(opacity: 0.06),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Type here to send text to desktop:',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
-                        ),
+                      Row(
+                        children: [
+                          Icon(Icons.edit_outlined,
+                              color: AppColors.primary.withValues(alpha: 0.6),
+                              size: 18),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Type here to send text to desktop',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       Expanded(
@@ -165,18 +130,20 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
                           maxLines: null,
                           expands: true,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: AppColors.textPrimary,
                             fontSize: 18,
                           ),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
+                            filled: false,
                             hintText: 'Start typing...',
                             hintStyle: TextStyle(
-                              color: Colors.white38,
+                              color: AppColors.textTertiary,
                               fontSize: 18,
                             ),
                           ),
-                          enabled: provider.connectionState == app_state.ConnectionState.connected,
+                          enabled: provider.connectionState ==
+                              app_state.ConnectionState.connected,
                         ),
                       ),
                     ],
@@ -184,96 +151,101 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
                 ),
               ),
 
-              // Special keys
+              // ── Special keys ──
               Container(
-                padding: const EdgeInsets.all(16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Column(
                   children: [
-                    const Text(
-                      'Special Keys:',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Special Keys',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    // First row
+                    Row(
+                      children: [
+                        _SpecialKey(label: 'Tab', keyName: 'tab', onTap: _handleSpecialKey),
+                        const SizedBox(width: 8),
+                        _SpecialKey(label: 'Space', keyName: 'space', onTap: _handleSpecialKey),
+                        const SizedBox(width: 8),
+                        _SpecialKey(label: 'Enter', keyName: 'enter', onTap: _handleSpecialKey, accent: true),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Second row
+                    Row(
+                      children: [
+                        _SpecialKey(label: '⌫', keyName: 'backspace', onTap: _handleSpecialKey),
+                        const SizedBox(width: 8),
+                        _SpecialKey(label: 'Esc', keyName: 'escape', onTap: _handleSpecialKey),
+                        const SizedBox(width: 8),
+                        _SpecialKey(
+                          label: 'Clear',
+                          keyName: 'clear',
+                          onTap: (_) {
+                            _textController.clear();
+                            _lastText = '';
+                          },
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 12),
-                    
-                    // First row of special keys
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildSpecialKeyButton('Tab', 'tab'),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildSpecialKeyButton('Space', 'space'),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildSpecialKeyButton('Enter', 'enter'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    
-                    // Second row of special keys
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildSpecialKeyButton('Backspace', 'backspace'),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildSpecialKeyButton('Escape', 'escape'),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildSpecialKeyButton('Clear', 'clear'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    
                     // Arrow keys
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildArrowKeyButton('↑', 'up'),
+                        _ArrowKey(label: '↑', keyName: 'up', onTap: _handleSpecialKey),
                       ],
                     ),
+                    const SizedBox(height: 4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildArrowKeyButton('←', 'left'),
-                        const SizedBox(width: 8),
-                        _buildArrowKeyButton('↓', 'down'),
-                        const SizedBox(width: 8),
-                        _buildArrowKeyButton('→', 'right'),
+                        _ArrowKey(label: '←', keyName: 'left', onTap: _handleSpecialKey),
+                        const SizedBox(width: 6),
+                        _ArrowKey(label: '↓', keyName: 'down', onTap: _handleSpecialKey),
+                        const SizedBox(width: 6),
+                        _ArrowKey(label: '→', keyName: 'right', onTap: _handleSpecialKey),
                       ],
                     ),
                   ],
                 ),
               ),
 
-              // Instructions
-              if (provider.connectionState != app_state.ConnectionState.connected)
+              // ── Warning when disconnected ──
+              if (provider.connectionState !=
+                  app_state.ConnectionState.connected)
                 Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                    color: AppColors.connecting.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: AppColors.connecting.withValues(alpha: 0.25)),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.info, color: Colors.orange),
-                      SizedBox(width: 8),
-                      Expanded(
+                      Icon(Icons.info_outline,
+                          color: AppColors.connecting.withValues(alpha: 0.8),
+                          size: 18),
+                      const SizedBox(width: 10),
+                      const Expanded(
                         child: Text(
                           'Connect to a desktop device to use the keyboard',
-                          style: TextStyle(color: Colors.orange),
+                          style: TextStyle(
+                            color: AppColors.connecting,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -285,98 +257,82 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
       ),
     );
   }
+}
 
-  Widget _buildSpecialKeyButton(String label, String key) {
-    return Consumer<RemoteMouseProvider>(
-      builder: (context, provider, child) {
-        final isEnabled = provider.connectionState == app_state.ConnectionState.connected;
-        
-        return ElevatedButton(
-          onPressed: isEnabled ? () {
-            if (key == 'clear') {
-              _textController.clear();
-              _lastText = '';
-            } else {
-              _handleSpecialKey(key);
-            }
-          } : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white.withOpacity(isEnabled ? 0.2 : 0.1),
-            foregroundColor: isEnabled ? Colors.white : Colors.white38,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+// ── Connection Banner ──
+
+class _ConnectionBanner extends StatelessWidget {
+  final app_state.ConnectionState state;
+  final RemoteMouseProvider provider;
+
+  const _ConnectionBanner({required this.state, required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _color;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        border: Border(bottom: BorderSide(color: color.withValues(alpha: 0.25))),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 4),
+              ],
             ),
           ),
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 14),
+          const SizedBox(width: 10),
+          Text(
+            _text,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildArrowKeyButton(String label, String key) {
-    return Consumer<RemoteMouseProvider>(
-      builder: (context, provider, child) {
-        final isEnabled = provider.connectionState == app_state.ConnectionState.connected;
-        
-        return SizedBox(
-          width: 50,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: isEnabled ? () => _handleSpecialKey(key) : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white.withOpacity(isEnabled ? 0.2 : 0.1),
-              foregroundColor: isEnabled ? Colors.white : Colors.white38,
-              padding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          if (provider.connectedDevice != null) ...[
+            const Spacer(),
+            Text(
+              '${provider.connectedDevice!.ip}:${provider.connectedDevice!.port}',
+              style: TextStyle(
+                color: color.withValues(alpha: 0.6),
+                fontSize: 11,
+                fontFamily: 'monospace',
               ),
             ),
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 18),
-            ),
-          ),
-        );
-      },
+          ],
+        ],
+      ),
     );
   }
 
-  Color _getConnectionColor(app_state.ConnectionState state) {
+  Color get _color {
     switch (state) {
       case app_state.ConnectionState.connected:
-        return Colors.green;
+        return AppColors.connected;
       case app_state.ConnectionState.connecting:
       case app_state.ConnectionState.reconnecting:
-        return Colors.orange;
+        return AppColors.connecting;
       case app_state.ConnectionState.error:
-        return Colors.red;
+        return AppColors.error;
       case app_state.ConnectionState.disconnected:
-        return Colors.grey;
+        return AppColors.disconnected;
     }
   }
 
-  IconData _getConnectionIcon(app_state.ConnectionState state) {
+  String get _text {
     switch (state) {
       case app_state.ConnectionState.connected:
-        return Icons.wifi;
-      case app_state.ConnectionState.connecting:
-      case app_state.ConnectionState.reconnecting:
-        return Icons.wifi_find;
-      case app_state.ConnectionState.error:
-        return Icons.wifi_off;
-      case app_state.ConnectionState.disconnected:
-        return Icons.portable_wifi_off;
-    }
-  }
-
-  String _getConnectionText(app_state.ConnectionState state) {
-    switch (state) {
-      case app_state.ConnectionState.connected:
-        return 'Connected - Keyboard Active';
+        return 'Connected — Keyboard Active';
       case app_state.ConnectionState.connecting:
         return 'Connecting...';
       case app_state.ConnectionState.reconnecting:
@@ -386,5 +342,121 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
       case app_state.ConnectionState.disconnected:
         return 'Not Connected';
     }
+  }
+}
+
+// ── Special Key Button ──
+
+class _SpecialKey extends StatelessWidget {
+  final String label;
+  final String keyName;
+  final void Function(String) onTap;
+  final bool accent;
+
+  const _SpecialKey({
+    required this.label,
+    required this.keyName,
+    required this.onTap,
+    this.accent = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Consumer<RemoteMouseProvider>(
+        builder: (context, provider, _) {
+          final isEnabled =
+              provider.connectionState == app_state.ConnectionState.connected;
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: isEnabled ? () => onTap(keyName) : null,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: accent
+                      ? AppColors.primary.withValues(alpha: isEnabled ? 0.2 : 0.08)
+                      : AppColors.surfaceLight.withValues(alpha: isEnabled ? 0.8 : 0.4),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: accent
+                        ? AppColors.primary.withValues(alpha: 0.3)
+                        : AppColors.surfaceBright.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: accent
+                          ? (isEnabled ? AppColors.primaryLight : AppColors.textTertiary)
+                          : (isEnabled ? AppColors.textPrimary : AppColors.textTertiary),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Arrow Key Button ──
+
+class _ArrowKey extends StatelessWidget {
+  final String label;
+  final String keyName;
+  final void Function(String) onTap;
+
+  const _ArrowKey({
+    required this.label,
+    required this.keyName,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<RemoteMouseProvider>(
+      builder: (context, provider, _) {
+        final isEnabled =
+            provider.connectionState == app_state.ConnectionState.connected;
+        return SizedBox(
+          width: 50,
+          height: 50,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: isEnabled ? () => onTap(keyName) : null,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLight.withValues(alpha: isEnabled ? 0.8 : 0.4),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.surfaceBright.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: isEnabled
+                          ? AppColors.textPrimary
+                          : AppColors.textTertiary,
+                      fontSize: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

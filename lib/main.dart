@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:remote_mouse/screens/desktop_screen.dart';
+import 'package:remote_mouse/theme/app_theme.dart';
 import 'providers/remote_mouse_provider.dart';
 import 'screens/touchpad_screen.dart';
 import 'models/app_state.dart' as app_state;
@@ -19,10 +20,7 @@ class RemoteMouseApp extends StatelessWidget {
       create: (context) => RemoteMouseProvider(),
       child: MaterialApp(
         title: 'Remote Mouse',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          useMaterial3: true,
-        ),
+        theme: AppTheme.darkTheme,
         home: const AppModeSelector(),
         debugShowCheckedModeBanner: false,
       ),
@@ -35,7 +33,6 @@ class AppModeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determine mode based on platform
     final isDesktop =
         Platform.isWindows || Platform.isLinux || Platform.isMacOS;
     final isMobile = Platform.isAndroid || Platform.isIOS;
@@ -45,7 +42,6 @@ class AppModeSelector extends StatelessWidget {
     } else if (isMobile) {
       return const MobileApp();
     } else {
-      // Fallback - show selection screen
       return const ModeSelectionScreen();
     }
   }
@@ -74,169 +70,86 @@ class _MobileAppState extends State<MobileApp> {
   }
 }
 
-// class DesktopApp extends StatefulWidget {
-//   const DesktopApp({super.key});
-
-//   @override
-//   State<DesktopApp> createState() => _DesktopAppState();
-// }
-
-// class _DesktopAppState extends State<DesktopApp> {
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text('Remote Mouse Server'),
-//       ),
-//       body: Consumer<RemoteMouseProvider>(
-//         builder: (context, provider, child) {
-//           return Center(
-//             child: Padding(
-//               padding: const EdgeInsets.all(32),
-//               child: Column(
-//                 mainAxisAlignment: MainAxisAlignment.center,
-//                 children: [
-//                   const Icon(
-//                     Icons.computer,
-//                     size: 80,
-//                     color: Colors.blue,
-//                   ),
-//                   const SizedBox(height: 32),
-//                   const Text(
-//                     'Remote Mouse Server',
-//                     style: TextStyle(
-//                       fontSize: 24,
-//                       fontWeight: FontWeight.bold,
-//                     ),
-//                   ),
-//                   const SizedBox(height: 16),
-//                   Text(
-//                     provider.isServerRunning
-//                         ? 'Server running on port ${provider.serverPort}'
-//                         : 'Server stopped',
-//                     style: const TextStyle(fontSize: 16),
-//                   ),
-//                   const SizedBox(height: 32),
-//                   ElevatedButton.icon(
-//                     onPressed: provider.isServerRunning
-//                         ? () => provider.stopServer()
-//                         : () => provider.startServer(),
-//                     icon: Icon(
-//                       provider.isServerRunning
-//                           ? Icons.stop
-//                           : Icons.play_arrow,
-//                     ),
-//                     label: Text(
-//                       provider.isServerRunning
-//                           ? 'Stop Server'
-//                           : 'Start Server',
-//                     ),
-//                   ),
-//                   const SizedBox(height: 16),
-//                   const Text(
-//                     'Connect from your mobile device using the Remote Mouse app.',
-//                     textAlign: TextAlign.center,
-//                     style: TextStyle(color: Colors.grey),
-//                   ),
-//                   if (provider.errorMessage != null) ...[
-//                     const SizedBox(height: 16),
-//                     Container(
-//                       padding: const EdgeInsets.all(16),
-//                       decoration: BoxDecoration(
-//                         color: Colors.red.shade50,
-//                         borderRadius: BorderRadius.circular(8),
-//                       ),
-//                       child: Text(
-//                         provider.errorMessage!,
-//                         style: const TextStyle(color: Colors.red),
-//                       ),
-//                     ),
-//                   ],
-//                 ],
-//               ),
-//             ),
-//           );
-//         },
-//       ),
-//     );
-//   }
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     WidgetsBinding.instance.addPostFrameCallback((_) {
-//       final provider = Provider.of<RemoteMouseProvider>(context, listen: false);
-//       provider.initialize(mode: app_state.AppMode.desktop);
-//     });
-//   }
-// }
-
 class ModeSelectionScreen extends StatelessWidget {
   const ModeSelectionScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Remote Mouse'),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.mouse,
-                size: 80,
-                color: Colors.blue,
-              ),
-              const SizedBox(height: 32),
-              const Text(
-                'Remote Mouse',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Choose your mode:',
-                style: TextStyle(fontSize: 18),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () =>
-                      _selectMode(context, app_state.AppMode.mobile),
-                  icon: const Icon(Icons.phone_android),
-                  label: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      'Mobile (Touchpad)',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () =>
-                      _selectMode(context, app_state.AppMode.desktop),
-                  icon: const Icon(Icons.computer),
-                  label: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      'Desktop (Server)',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ),
-              ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.background,
+              Color(0xFF101820),
+              AppColors.background,
             ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // App icon
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Image.asset('assets/images/icon.png'),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  const Text(
+                    'Remote Mouse',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Choose your mode',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+                  _ModeCard(
+                    icon: Icons.phone_android,
+                    title: 'Mobile',
+                    subtitle: 'Use as touchpad controller',
+                    onTap: () =>
+                        _selectMode(context, app_state.AppMode.mobile),
+                  ),
+                  const SizedBox(height: 16),
+                  _ModeCard(
+                    icon: Icons.computer,
+                    title: 'Desktop',
+                    subtitle: 'Run as mouse server',
+                    onTap: () =>
+                        _selectMode(context, app_state.AppMode.desktop),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -256,5 +169,76 @@ class ModeSelectionScreen extends StatelessWidget {
         MaterialPageRoute(builder: (context) => const DesktopScreen()),
       );
     }
+  }
+}
+
+class _ModeCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ModeCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: glassDecoration(opacity: 0.06),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: AppColors.primaryLight, size: 26),
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: AppColors.textTertiary,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

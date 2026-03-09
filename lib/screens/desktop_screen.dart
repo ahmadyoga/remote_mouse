@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import '../providers/remote_mouse_provider.dart';
 import '../models/app_state.dart' as app_state;
+import '../theme/app_theme.dart';
 
 class DesktopScreen extends StatefulWidget {
   const DesktopScreen({super.key});
@@ -25,16 +26,12 @@ class _DesktopScreenState extends State<DesktopScreen> {
 
   Future<void> _initializeDesktop() async {
     try {
-      // Initialize provider
       final provider = Provider.of<RemoteMouseProvider>(context, listen: false);
       await provider.initialize(mode: app_state.AppMode.desktop);
       await provider.startServer();
-
-      setState(() {
-        _isInitialized = true;
-      });
+      setState(() => _isInitialized = true);
     } catch (e) {
-      print('Desktop initialization error: $e');
+      debugPrint('Desktop initialization error: $e');
     }
   }
 
@@ -42,259 +39,352 @@ class _DesktopScreenState extends State<DesktopScreen> {
     try {
       final info = NetworkInfo();
       final wifiIP = await info.getWifiIP();
-      setState(() {
-        _localIpAddress = wifiIP;
-      });
+      setState(() => _localIpAddress = wifiIP);
     } catch (e) {
-      print('Error getting IP address: $e');
-      setState(() {
-        _localIpAddress = 'Unknown';
-      });
+      debugPrint('Error getting IP address: $e');
+      setState(() => _localIpAddress = 'Unknown');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (!_isInitialized) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: AppColors.primary),
+              const SizedBox(height: 16),
+              const Text(
+                'Starting server...',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Remote Mouse Server'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/images/icon.png', width: 28, height: 28),
+            const SizedBox(width: 10),
+            const Text('Remote Mouse Server'),
+          ],
+        ),
       ),
       body: Consumer<RemoteMouseProvider>(
         builder: (context, provider, child) {
           return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Server Status Card
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Server Status Card ──
+                _DesktopCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                provider.isServerRunning
-                                    ? Icons.play_circle_fill
-                                    : Icons.stop_circle,
-                                color: provider.isServerRunning
-                                    ? Colors.green
-                                    : Colors.red,
-                                size: 32,
-                              ),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Server Status',
-                                    style:
-                                        Theme.of(context).textTheme.titleLarge,
-                                  ),
-                                  // Text(
-                                  //   provider.isServerRunning
-                                  //       ? 'Running on port ${provider.serverPort}'
-                                  //       : 'Stopped',
-                                  //   style: Theme.of(context).textTheme.bodyMedium,
-                                  // ),
-                                ],
-                              ),
-                            ],
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: (provider.isServerRunning
+                                      ? AppColors.connected
+                                      : AppColors.error)
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              provider.isServerRunning
+                                  ? Icons.play_circle_fill
+                                  : Icons.stop_circle,
+                              color: provider.isServerRunning
+                                  ? AppColors.connected
+                                  : AppColors.error,
+                              size: 24,
+                            ),
                           ),
-                          const SizedBox(height: 16),
-                          Row(
+                          const SizedBox(width: 14),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              ElevatedButton.icon(
-                                onPressed: provider.isServerRunning
-                                    ? () => provider.stopServer()
-                                    : () => provider.startServer(),
-                                icon: Icon(
-                                  provider.isServerRunning
-                                      ? Icons.stop
-                                      : Icons.play_arrow,
-                                ),
-                                label: Text(
-                                  provider.isServerRunning
-                                      ? 'Stop Server'
-                                      : 'Start Server',
+                              const Text(
+                                'Server Status',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              OutlinedButton.icon(
-                                onPressed: () =>
-                                    _showPortDialog(context, provider),
-                                icon: const Icon(Icons.settings),
-                                label: const Text('Port Settings'),
+                              Text(
+                                provider.isServerRunning
+                                    ? 'Running on port ${provider.serverPort}'
+                                    : 'Stopped',
+                                style: const TextStyle(
+                                  color: AppColors.textTertiary,
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
                         ],
                       ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Connection Status Card
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: 16),
+                      Row(
                         children: [
-                          Text(
-                            'Connection Status',
-                            style: Theme.of(context).textTheme.titleLarge,
+                          ElevatedButton.icon(
+                            onPressed: provider.isServerRunning
+                                ? () => provider.stopServer()
+                                : () => provider.startServer(),
+                            icon: Icon(
+                              provider.isServerRunning
+                                  ? Icons.stop
+                                  : Icons.play_arrow,
+                              size: 20,
+                            ),
+                            label: Text(
+                              provider.isServerRunning
+                                  ? 'Stop Server'
+                                  : 'Start Server',
+                            ),
+                            style: provider.isServerRunning
+                                ? ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.error,
+                                  )
+                                : null,
                           ),
-                          const SizedBox(height: 8),
-                          Row(
+                          const SizedBox(width: 10),
+                          OutlinedButton.icon(
+                            onPressed: () => _showPortDialog(context, provider),
+                            icon: const Icon(Icons.settings_outlined, size: 18),
+                            label: const Text('Port'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // ── Connection Status Card ──
+                _DesktopCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Connection',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color:
+                                  _getConnectionColor(provider.connectionState),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _getConnectionColor(
+                                          provider.connectionState)
+                                      .withValues(alpha: 0.4),
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            _getConnectionText(provider.connectionState),
+                            style: TextStyle(
+                              color:
+                                  _getConnectionColor(provider.connectionState),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (provider.connectedDevice != null) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.connected.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                _getConnectionIcon(provider.connectionState),
-                                color: _getConnectionColor(
-                                    provider.connectionState),
-                              ),
+                              const Icon(Icons.computer,
+                                  color: AppColors.connected, size: 16),
                               const SizedBox(width: 8),
                               Text(
-                                  _getConnectionText(provider.connectionState)),
+                                provider.connectedDevice!.name,
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ],
                           ),
-                          if (provider.connectedDevice != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              'Connected to: ${provider.connectedDevice!.name}',
-                              style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // ── QR Code Card ──
+                if (provider.isServerRunning && _localIpAddress != null)
+                  _DesktopCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Quick Connect',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Scan this QR code with the mobile app',
+                          style: TextStyle(
+                            color: AppColors.textTertiary,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                          ],
-                        ],
-                      ),
+                            child: QrImageView(
+                              data: '$_localIpAddress:${provider.serverPort}',
+                              version: QrVersions.auto,
+                              size: 160.0,
+                              backgroundColor: Colors.white,
+                              eyeStyle: QrEyeStyle(
+                                eyeShape: QrEyeShape.roundedOuter,
+                                color: const Color(0xFF0D1117),
+                              ),
+                              dataModuleStyle: QrDataModuleStyle(
+                                dataModuleShape: QrDataModuleShape.roundedOuter,
+                                color: const Color(0xFF0D1117),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '$_localIpAddress:${provider.serverPort}',
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-                  // QR Code Card
-                  if (provider.isServerRunning && _localIpAddress != null)
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Quick Connect',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Scan this QR code with the mobile app to connect instantly',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                            const SizedBox(height: 16),
-                            Center(
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
-                                ),
-                                child: QrImageView(
-                                  data:
-                                      '$_localIpAddress:${provider.serverPort}',
-                                  version: QrVersions.auto,
-                                  size: 150.0,
-                                  backgroundColor: Colors.white,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Center(
-                              child: Text(
-                                '$_localIpAddress:${provider.serverPort}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      fontFamily: 'monospace',
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                              ),
-                            ),
-                          ],
+                // ── Instructions Card ──
+                const _DesktopCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'How to Connect',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                    ),
+                      SizedBox(height: 12),
+                      _InstructionStep(
+                          number: 1, text: 'Ensure the server is running'),
+                      _InstructionStep(
+                          number: 2, text: 'Open Remote Mouse on your phone'),
+                      _InstructionStep(
+                          number: 3,
+                          text: 'Scan the QR code or enter IP manually'),
+                      _InstructionStep(
+                        number: 4,
+                        text: 'Both devices must be on the same network',
+                        isLast: true,
+                      ),
+                    ],
+                  ),
+                ),
 
-                  const SizedBox(height: 16),
-
-                  // Instructions Card
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                // ── Error Card ──
+                if (provider.errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: AppColors.error.withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
                         children: [
-                          Text(
-                            'Instructions',
-                            style: Theme.of(context).textTheme.titleLarge,
+                          const Icon(Icons.error_outline,
+                              color: AppColors.error, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              provider.errorMessage!,
+                              style: const TextStyle(
+                                  color: AppColors.error, fontSize: 13),
+                            ),
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            '1. Make sure the server is running\n'
-                            '2. Install the Remote Mouse app on your mobile device\n'
-                            '3. Connect to this computer using device discovery or manual IP entry\n'
-                            '4. Use your mobile device as a touchpad!\n\n'
-                            'Make sure both devices are on the same network.',
+                          IconButton(
+                            onPressed: provider.clearError,
+                            icon: const Icon(Icons.close,
+                                color: AppColors.error, size: 18),
                           ),
                         ],
                       ),
                     ),
                   ),
-
-                  if (provider.errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16),
-                      child: Card(
-                        color: Colors.red.shade50,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.error, color: Colors.red),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  provider.errorMessage!,
-                                  style: const TextStyle(color: Colors.red),
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: provider.clearError,
-                                icon:
-                                    const Icon(Icons.close, color: Colors.red),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+              ],
             ),
           );
         },
@@ -305,28 +395,14 @@ class _DesktopScreenState extends State<DesktopScreen> {
   Color _getConnectionColor(app_state.ConnectionState state) {
     switch (state) {
       case app_state.ConnectionState.connected:
-        return Colors.green;
+        return AppColors.connected;
       case app_state.ConnectionState.connecting:
       case app_state.ConnectionState.reconnecting:
-        return Colors.orange;
+        return AppColors.connecting;
       case app_state.ConnectionState.error:
-        return Colors.red;
+        return AppColors.error;
       case app_state.ConnectionState.disconnected:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getConnectionIcon(app_state.ConnectionState state) {
-    switch (state) {
-      case app_state.ConnectionState.connected:
-        return Icons.wifi;
-      case app_state.ConnectionState.connecting:
-      case app_state.ConnectionState.reconnecting:
-        return Icons.wifi_find;
-      case app_state.ConnectionState.error:
-        return Icons.wifi_off;
-      case app_state.ConnectionState.disconnected:
-        return Icons.portable_wifi_off;
+        return AppColors.disconnected;
     }
   }
 
@@ -352,13 +428,20 @@ class _DesktopScreenState extends State<DesktopScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Server Port'),
+        title: const Row(
+          children: [
+            Icon(Icons.settings, color: AppColors.primary, size: 22),
+            SizedBox(width: 10),
+            Text('Server Port'),
+          ],
+        ),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(
             labelText: 'Port Number',
             hintText: '1978',
+            prefixIcon: Icon(Icons.tag, size: 20),
           ),
         ),
         actions: [
@@ -381,6 +464,81 @@ class _DesktopScreenState extends State<DesktopScreen> {
               }
             },
             child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Desktop Card ──
+
+class _DesktopCard extends StatelessWidget {
+  final Widget child;
+  const _DesktopCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: glassDecoration(opacity: 0.05),
+      child: child,
+    );
+  }
+}
+
+// ── Instruction Step ──
+
+class _InstructionStep extends StatelessWidget {
+  final int number;
+  final String text;
+  final bool isLast;
+
+  const _InstructionStep({
+    required this.number,
+    required this.text,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Center(
+              child: Text(
+                '$number',
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                text,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                  height: 1.3,
+                ),
+              ),
+            ),
           ),
         ],
       ),
